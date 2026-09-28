@@ -1,0 +1,172 @@
+"""HTTP API client for the Sirius server."""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import uuid
+from datetime import datetime, timedelta
+from typing import Any
+
+import aiohttp
+
+from homeassistant.helpers.storage import Store
+
+from .const import API_DEVICES, API_LOGIN, API_SET_VALUE, API_TIMEOUT
+
+_LOGGER = logging.getLogger(__name__)
+
+
+class SiriusHub:
+    """Manages authentication and HTTP API calls to the Sirius server."""
+
+    def __init__(
+        self,
+        session: aiohttp.ClientSession,
+        sirius_endpoint: str,
+        username: str,
+        password: str,
+        store: Store | None = None,
+    ) -> None:
+        self._session = session
+        self._sirius_endpoint = sirius_endpoint.rstrip("/")
+        self._username = username
+        self._password = password
+        self._store = store
+        self._token: str | None = None
+        self._token_expiry: datetime | None = None
+        self._lock = asyncio.Lock()
+
+    async def async_ensure_token(self) -> str:
+        """Return a valid token, refreshing or logging in if needed."""
+        async with self._lock:
+            if self._token and self._token_expiry and self._token_expiry > datetime.now():
+                return self._token
+            return await self._async_login()
+
+    async def _async_login(self) -> str:
+        """Authenticate and store the token."""
+        url = f"{self._sirius_endpoint}{API_LOGIN}"
+        payload = {
+            "email": self._username,
+            "password": self._password,
+        }
+        try:
+            async with self._session.post(url, json=payload, timeout=API_TIMEOUT) as resp:
+                data = await resp.json()
+                if resp.status != 200 or not data.get("JWT"):
+                    _LOGGER.error("Login failed: %s", data)
+                    raise SiriusAuthError(f"Login failed: {data}")
+                self._token = data["JWT"]
+                self._token_expiry = datetime.now() + timedelta(
+                    seconds=data.get("expires", 3600)
+                )
+                if self._store:
+                    await self._store.async_save(
+                        {"token": self._token, "expiry": self._token_expiry.isoformat()}
+                    )
+                _LOGGER.debug("Successfully authenticated with Sirius")
+                return self._token
+        except asyncio.TimeoutError as err:
+            raise SiriusAuthError("Login request timed out") from err
+
+    async def async_discover_devices(self) -> list[dict[str, Any]]:
+        """Fetch all devices from the Sirius server and flatten their data."""
+        token = await self.async_ensure_token()
+        url = f"{self._sirius_endpoint}{API_DEVICES}"
+        headers = {"Authorization": f"Bearer {token}"}
+        try:
+            async with self._session.get(url, headers=headers, timeout=API_TIMEOUT) as resp:
+                data = await resp.json()
+                if resp.status != 200:
+                    _LOGGER.error("Failed to discover devices: %s", data)
+                    return []
+                raw_devices = data if isinstance(data, list) else data.get("devices", [])
+                return [self._flatten_device(d) for d in raw_devices]
+        except asyncio.TimeoutError:
+            _LOGGER.error("Device discovery timed out")
+            return []
+
+    def _flatten_device(self, device: dict[str, Any]) -> dict[str, Any]:
+        """Flatten properties[] and capabilities[] into a single dict per device."""
+        flat: dict[str, Any] = {
+            "id": device["id"],
+            "uid": device.get("uid", ""),
+            "name": device.get("description", f"Rangehood {device['id']}"),
+            "description": device.get("description", ""),
+        }
+
+        for prop in device.get("properties", []):
+            flat[prop["id"]] = prop["value"]
+
+        limits: dict[str, dict[str, float]] = {}
+        for cap in device.get("capabilities", []):
+            uid = cap["capabilityUid"]
+            flat[uid] = cap["value"]
+            limits[uid] = {
+                "min": float(cap.get("minValue", 0)),
+                "max": float(cap.get("maxValue", 100)),
+            }
+
+        flat["_limits"] = limits
+
+        device_name = flat.get("property.device_name")
+        if device_name:
+            flat["name"] = device_name
+
+        return flat
+
+    async def async_get_status(self, device_id: int) -> str:
+        """Send a getStatus command. Device status arrives asynchronously via MQTT."""
+        request_id = str(uuid.uuid4())
+        _LOGGER.debug("getStatus for device %d (requestId=%s)", device_id, request_id)
+        payload = {
+            "command": "getStatus",
+            "deviceType": "smartphone",
+            "parameters": [],
+            "requestId": request_id,
+        }
+        await self._post_set_value(device_id, payload)
+        return request_id
+
+    async def async_send_command(
+        self, device_id: int, parameters: list[dict[str, Any]]
+    ) -> str:
+        """Send a setValue command. Device auto-publishes updated status via MQTT."""
+        request_id = str(uuid.uuid4())
+        _LOGGER.debug(
+            "setValue for device %d: %s (requestId=%s)", device_id, parameters, request_id
+        )
+        payload = {
+            "command": "setValue",
+            "deviceType": "smartphone",
+            "parameters": parameters,
+            "requestId": request_id,
+        }
+        await self._post_set_value(device_id, payload)
+        return request_id
+
+    async def _post_set_value(
+        self, device_id: int, payload: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        """Low-level POST to /devices/{id}/set_value."""
+        token = await self.async_ensure_token()
+        url = f"{self._sirius_endpoint}{API_SET_VALUE.format(device_id=device_id)}"
+        headers = {"Authorization": f"Bearer {token}"}
+        try:
+            async with self._session.post(
+                url, json=payload, headers=headers, timeout=API_TIMEOUT
+            ) as resp:
+                data = await resp.json()
+                if resp.status != 200:
+                    _LOGGER.error("set_value failed for %s: %s", device_id, data)
+                else:
+                    _LOGGER.debug("set_value succeeded for %s: %s", device_id, data)
+                return data
+        except asyncio.TimeoutError:
+            _LOGGER.error("set_value timed out for %s", device_id)
+            return None
+
+
+class SiriusAuthError(Exception):
+    """Raised when authentication with the Sirius server fails."""

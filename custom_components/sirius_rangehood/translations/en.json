@@ -1,0 +1,66 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "sirius_endpoint": "Sirius HTTPS Endpoint",
+          "sirius_mqtts_endpoint": "Sirius MQTTS Endpoint",
+          "username": "Email",
+          "password": "Password"
+        },
+        "description": "Enter your Sirius rangehood cloud credentials."
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid username or password.",
+      "cannot_connect": "Could not connect to the Sirius server.",
+      "no_devices": "No rangehood devices found."
+    },
+    "abort": {
+      "already_configured": "This Sirius endpoint is already configured."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "filter_clean_countdown": {
+        "name": "Filter Clean Countdown"
+      },
+      "ip_address": {
+        "name": "IP Address"
+      },
+      "rssi": {
+        "name": "RSSI"
+      },
+      "ssid": {
+        "name": "SSID"
+      },
+      "firmware_version": {
+        "name": "Firmware Version"
+      },
+      "filter_worn": {
+        "name": "Filter Worn"
+      },
+      "boost_value": {
+        "name": "Boost Duration"
+      },
+      "timer_value": {
+        "name": "Timer Duration"
+      },
+      "device_ref": {
+        "name": "Device Ref"
+      },
+      "device_type": {
+        "name": "Device Type"
+      },
+      "device_class": {
+        "name": "Device Class"
+      },
+      "firmware_code": {
+        "name": "Firmware Code"
+      },
+      "secure_id": {
+        "name": "Secure ID"
+      }
+    }
+  }
+}

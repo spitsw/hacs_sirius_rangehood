@@ -1,0 +1,136 @@
+"""Light platform for Sirius Rangehood."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from homeassistant.components.light import ColorMode, LightEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from .const import (
+    ATTR_LIGHT,
+    ATTR_LIGHT_BRIGHTNESS,
+    ATTR_LIGHT_COLOR_TEMP,
+    DOMAIN,
+    LIGHT_BRIGHTNESS_MAX,
+    LIGHT_BRIGHTNESS_MIN,
+    MAX_MIREDS,
+    MIN_MIREDS,
+)
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up the light platform."""
+    data = hass.data[DOMAIN][entry.entry_id]
+    coordinator = data["coordinator"]
+    devices = data["devices"]
+
+    entities = []
+    for device in devices:
+        entities.append(SiriusRangehoodLight(coordinator, device["id"], device, entry))
+
+    async_add_entities(entities)
+
+
+class SiriusRangehoodLight(CoordinatorEntity, LightEntity):
+    """Representation of a Sirius Rangehood light."""
+
+    _attr_has_entity_name = True
+    _attr_color_mode = ColorMode.COLOR_TEMP
+    _attr_supported_color_modes = {ColorMode.COLOR_TEMP}
+    _attr_min_mireds = MIN_MIREDS
+    _attr_max_mireds = MAX_MIREDS
+
+    def __init__(
+        self,
+        coordinator,
+        device_id: int,
+        device: dict[str, Any],
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the light."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._entry_id = entry.entry_id
+        self._attr_unique_id = f"{device_id}_light"
+        self._attr_name = None
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, device_id)},
+        }
+
+    def _get_device_state(self) -> dict[str, Any]:
+        """Return latest device state."""
+        return self.coordinator.data.get(self._device_id, {})
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return if light is on."""
+        state = self._get_device_state()
+        val = state.get(ATTR_LIGHT)
+        return bool(val) if val is not None else None
+
+    @property
+    def brightness(self) -> int | None:
+        """Return brightness (0-255)."""
+        state = self._get_device_state()
+        val = state.get(ATTR_LIGHT_BRIGHTNESS)
+        if val is not None:
+            pct = float(val)
+            pct = max(LIGHT_BRIGHTNESS_MIN, min(LIGHT_BRIGHTNESS_MAX, pct))
+            normalized = (pct - LIGHT_BRIGHTNESS_MIN) / (
+                LIGHT_BRIGHTNESS_MAX - LIGHT_BRIGHTNESS_MIN
+            )
+            return round(normalized * 255)
+        return None
+
+    @property
+    def color_temp(self) -> int | None:
+        """Return color temperature in mireds."""
+        state = self._get_device_state()
+        val = state.get(ATTR_LIGHT_COLOR_TEMP)
+        if val is not None:
+            kelvin = float(val)
+            if kelvin > 0:
+                return round(1000000 / kelvin)
+        return None
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn the light on."""
+        params = [{"id": ATTR_LIGHT, "value": 1.0}]
+
+        if ATTR_LIGHT_BRIGHTNESS in kwargs:
+            ha_brightness = kwargs[ATTR_LIGHT_BRIGHTNESS]
+            pct = LIGHT_BRIGHTNESS_MIN + (ha_brightness / 255) * (
+                LIGHT_BRIGHTNESS_MAX - LIGHT_BRIGHTNESS_MIN
+            )
+            params.append(
+                {
+                    "id": ATTR_LIGHT_BRIGHTNESS,
+                    "value": round(max(LIGHT_BRIGHTNESS_MIN, min(LIGHT_BRIGHTNESS_MAX, pct)), 1),
+                }
+            )
+
+        if ATTR_LIGHT_COLOR_TEMP in kwargs:
+            mireds = kwargs[ATTR_LIGHT_COLOR_TEMP]
+            if mireds > 0:
+                params.append(
+                    {"id": ATTR_LIGHT_COLOR_TEMP, "value": round(1000000 / mireds)}
+                )
+
+        await self._async_send_command(params)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn the light off."""
+        await self._async_send_command([{"id": ATTR_LIGHT, "value": 0.0}])
+
+    async def _async_send_command(self, params: list[dict[str, Any]]) -> None:
+        """Send a setValue command via the hub."""
+        data = self.hass.data[DOMAIN][self._entry_id]
+        hub = data["hub"]
+        await hub.async_send_command(self._device_id, params)

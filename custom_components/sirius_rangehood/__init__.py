@@ -1,0 +1,164 @@
+"""Integration setup for Sirius Rangehood."""
+
+from __future__ import annotations
+
+import logging
+from datetime import datetime, timedelta
+from typing import Any
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.storage import Store
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
+from .const import (
+    CONF_SIRIUS_ENDPOINT,
+    CONF_SIRIUS_MQTTS_ENDPOINT,
+    DEVICES_POLL_INTERVAL,
+    DOMAIN,
+    GET_STATUS_INTERVAL,
+    LIVE_CAPABILITY_KEYS,
+)
+from .hub import SiriusHub
+from .mqtt import SiriusMQTT
+
+_LOGGER = logging.getLogger(__name__)
+
+PLATFORMS = [Platform.FAN, Platform.LIGHT, Platform.SWITCH, Platform.SENSOR]
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Sirius Rangehood from a config entry."""
+    hass.data.setdefault(DOMAIN, {})
+
+    sirius_endpoint = entry.data[CONF_SIRIUS_ENDPOINT]
+    mqtts_endpoint = entry.data[CONF_SIRIUS_MQTTS_ENDPOINT]
+    username = entry.data[CONF_USERNAME]
+    password = entry.data[CONF_PASSWORD]
+
+    session = async_get_clientsession(hass)
+    hub = SiriusHub(session, sirius_endpoint, username, password)
+
+    # Auth token persistence
+    store = Store[dict[str, Any]](hass, 1, f"{DOMAIN}_auth_{entry.entry_id}")
+    hub._store = store
+
+    stored = await store.async_load()
+    if stored:
+        hub._token = stored.get("token")
+        expiry_str = stored.get("expiry")
+        if expiry_str:
+            try:
+                hub._token_expiry = datetime.fromisoformat(expiry_str)
+            except ValueError:
+                hub._token_expiry = None
+
+    # Discover devices — gets static properties + initial capability values
+    devices = await hub.async_discover_devices()
+    if not devices:
+        _LOGGER.warning("No Sirius devices discovered")
+        return False
+
+    # Shared device state: device_id (int) -> flattened state dict
+    device_states: dict[int, dict[str, Any]] = {}
+    for device in devices:
+        device_states[device["id"]] = dict(device)
+
+    # Coordinator — sends getStatus heartbeat every 5 min
+    async def _async_update_data() -> dict[int, dict[str, Any]]:
+        """Heartbeat: send getStatus for each device."""
+        _LOGGER.debug("Coordinator update for %d device(s)", len(device_states))
+        for device_id in device_states:
+            try:
+                await hub.async_get_status(device_id)
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("getStatus failed for device %d", device_id)
+        return dict(device_states)
+
+    coordinator = DataUpdateCoordinator(
+        hass,
+        _LOGGER,
+        name=f"{DOMAIN} devices",
+        update_method=_async_update_data,
+        update_interval=timedelta(seconds=GET_STATUS_INTERVAL),
+    )
+
+    # Separate timer — poll /devices/ hourly for static property changes
+    async def _poll_devices(_now: datetime | None = None) -> None:
+        try:
+            fresh = await hub.async_discover_devices()
+            for device in fresh:
+                did = device["id"]
+                if did in device_states:
+                    for k, v in device.items():
+                        if k not in LIVE_CAPABILITY_KEYS:
+                            device_states[did][k] = v
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("Failed to refresh devices from /devices/")
+
+    entry.async_on_unload(
+        async_track_time_interval(
+            hass, _poll_devices, timedelta(seconds=DEVICES_POLL_INTERVAL)
+        )
+    )
+
+    # MQTT status callback — updates live capability values
+    def _on_mqtt_status(device_id: str, payload: dict[str, Any]) -> None:
+        for did, state in device_states.items():
+            if state.get("uid") == device_id:
+                _LOGGER.debug("MQTT status for device %d: %s", did, payload)
+                state.update(payload)
+                coordinator.async_set_updated_data(dict(device_states))
+                break
+
+    # Start MQTT
+    mqtt = SiriusMQTT(mqtts_endpoint, username, password, _on_mqtt_status)
+    mqtt_connected = await mqtt.async_start()
+    if mqtt_connected:
+        for device in devices:
+            mqtt.subscribe_device(device.get("uid", str(device["id"])))
+
+    # Initial refresh sends getStatus to bootstrap live state via MQTT
+    await coordinator.async_config_entry_first_refresh()
+
+    _LOGGER.info(
+        "Sirius Rangehood setup complete: %d device(s), %s",
+        len(devices),
+        "MQTT connected" if mqtt_connected else "MQTT offline",
+    )
+
+    # Store runtime data
+    hass.data[DOMAIN][entry.entry_id] = {
+        "hub": hub,
+        "mqtt": mqtt,
+        "coordinator": coordinator,
+        "device_states": device_states,
+        "devices": devices,
+    }
+
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
+    return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    data = hass.data[DOMAIN].pop(entry.entry_id, None)
+    if data:
+        mqtt: SiriusMQTT = data["mqtt"]
+        await mqtt.async_stop()
+
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        hass.data[DOMAIN].pop(entry.entry_id, None)
+
+    return unloaded
+
+
+async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reconfigure on update."""
+    await hass.config_entries.async_reload(entry.entry_id)
