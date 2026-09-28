@@ -88,14 +88,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Separate timer — poll /devices/ hourly for static property changes
     async def _poll_devices(_now: datetime | None = None) -> None:
+        """Poll /devices/ for new devices and static property changes."""
         try:
             fresh = await hub.async_discover_devices()
+            new_ids: set[int] = set()
             for device in fresh:
                 did = device["id"]
                 if did in device_states:
                     for k, v in device.items():
                         if k not in LIVE_CAPABILITY_KEYS:
                             device_states[did][k] = v
+                else:
+                    new_ids.add(did)
+
+            if new_ids:
+                _LOGGER.info(
+                    "New Sirius device(s) detected (IDs: %s), reloading entry",
+                    sorted(new_ids),
+                )
+                hass.async_create_task(
+                    hass.config_entries.async_reload(entry.entry_id)
+                )
         except Exception:  # noqa: BLE001
             _LOGGER.exception("Failed to refresh devices from /devices/")
 
