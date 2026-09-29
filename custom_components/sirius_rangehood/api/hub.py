@@ -227,11 +227,19 @@ class SiriusHub:
                     url, json=payload, headers=headers, timeout=API_TIMEOUT
                 )
             ) as resp:
-                data = await resp.json()
                 if resp.status == 401:
                     self._token = None
                     self._token_expiry = None
                     raise SiriusAuthError("JWT rejected by set_value")
+
+                data = None
+                try:
+                    data = await resp.json()
+                except aiohttp.ContentTypeError:
+                    # Server may return a non-JSON response (e.g. empty body
+                    # with 2xx) — the command was still processed.
+                    pass
+
                 if resp.status != 200:
                     _LOGGER.error("set_value failed for device %s (HTTP %d)", device_id, resp.status)
                 else:
@@ -243,8 +251,6 @@ class SiriusHub:
             _LOGGER.error("set_value timed out for %s after retries", device_id)
             return None
         except aiohttp.ClientError:
-            # Likely a connection reset after the server already processed the
-            # command — the device publishes the new state via MQTT regardless.
             _LOGGER.warning(
                 "set_value connection lost for %s after retries "
                 "(command may have been processed; check for MQTT status update)",
