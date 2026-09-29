@@ -65,7 +65,7 @@ class SiriusHub:
                     await self._store.async_save(
                         {"token": self._token, "expiry": self._token_expiry.isoformat()}
                     )
-                _LOGGER.debug("Successfully authenticated with Sirius")
+                _LOGGER.info("Sirius auth token refreshed, expires at %s", self._token_expiry.isoformat())
                 return self._token
         except asyncio.TimeoutError as err:
             raise SiriusAuthError("Login request timed out") from err

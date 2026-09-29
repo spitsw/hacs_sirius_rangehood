@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
@@ -142,6 +142,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         len(devices),
         "MQTT connected" if mqtt_connected else "MQTT offline",
     )
+
+    # Proactive token refresh — refresh 1 minute before expiry so API calls
+    # never have to wait for a login round-trip.
+    async def _refresh_token(now: datetime | None = None) -> None:
+        """Refresh the auth token before it expires."""
+        try:
+            await hub.async_ensure_token()
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("Failed to refresh auth token")
+        if hub._token_expiry:
+            remaining = (hub._token_expiry - datetime.now()).total_seconds() - 60
+            if remaining > 0:
+                entry.async_on_unload(
+                    async_call_later(hass, remaining, _refresh_token)
+                )
+
+    if hub._token_expiry:
+        remaining = (hub._token_expiry - datetime.now()).total_seconds() - 60
+        if remaining > 0:
+            entry.async_on_unload(
+                async_call_later(hass, remaining, _refresh_token)
+            )
 
     # Store runtime data
     hass.data[DOMAIN][entry.entry_id] = {
