@@ -3,7 +3,7 @@
   "name": "Sirius Rangehood",
   "version": "1.0.0",
   "config_flow": true,
-  "requirements": ["paho-mqtt>=1.6.1"],
+  "requirements": ["paho-mqtt==2.1.0"],
   "dependencies": [],
   "codeowners": [],
   "homeassistant": "2026.3.0",
