@@ -6,7 +6,9 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import Any
+from collections.abc import Callable, Coroutine
+from datetime import datetime, timedelta
+from typing import Any, TypeVar
 
 import aiohttp
 
@@ -15,6 +17,33 @@ from homeassistant.helpers.storage import Store
 from .const import API_DEVICES, API_LOGIN, API_SET_VALUE, API_TIMEOUT
 
 _LOGGER = logging.getLogger(__name__)
+
+_MAX_RETRIES = 3
+_RETRY_BASE_DELAY = 2.0  # seconds
+
+_T = TypeVar("_T")
+
+
+async def _run_with_retry(
+    coro_factory: Callable[[], Coroutine[Any, Any, _T]],
+    retries: int = _MAX_RETRIES,
+) -> _T:
+    """Await a coroutine, retrying on timeout and transient HTTP errors.
+
+    *coro_factory* is a zero-argument callable that returns a coroutine.
+    The first call receives the original timeout; retries use
+    *timeout + (2 ** attempt)* seconds to allow longer recovery.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(retries):
+        try:
+            return await coro_factory()
+        except (asyncio.TimeoutError, aiohttp.ClientError) as exc:
+            last_exc = exc
+            _LOGGER.debug("HTTP request failed (attempt %d/%d): %s", attempt + 1, retries, exc)
+            if attempt < retries - 1:
+                await asyncio.sleep(_RETRY_BASE_DELAY * (2 ** attempt))
+    raise last_exc  # type: ignore[misc]
 
 
 class SiriusHub:
@@ -65,7 +94,9 @@ class SiriusHub:
             "password": self._password,
         }
         try:
-            async with self._session.post(url, json=payload, timeout=API_TIMEOUT) as resp:
+            async with await _run_with_retry(
+                lambda: self._session.post(url, json=payload, timeout=API_TIMEOUT)
+            ) as resp:
                 data = await resp.json()
                 if resp.status != 200 or not data.get("JWT"):
                     _LOGGER.error("Login failed (HTTP %d)", resp.status)
@@ -80,9 +111,11 @@ class SiriusHub:
                     )
                 _LOGGER.info("Sirius auth token refreshed, expires at %s", self._token_expiry.isoformat())
                 return self._token
-        except asyncio.TimeoutError:
-            _LOGGER.error("Login request timed out")
-            raise  # not an auth failure — let callers decide how to handle
+        except SiriusAuthError:
+            raise  # never retry a credential rejection
+        except (asyncio.TimeoutError, aiohttp.ClientError):
+            _LOGGER.error("Login request failed after retries")
+            raise
 
     async def async_discover_devices(self) -> list[dict[str, Any]]:
         """Fetch all devices from the Sirius server and flatten their data."""
@@ -90,7 +123,9 @@ class SiriusHub:
         url = f"{self._sirius_endpoint}{API_DEVICES}"
         headers = {"Authorization": f"Bearer {token}"}
         try:
-            async with self._session.get(url, headers=headers, timeout=API_TIMEOUT) as resp:
+            async with await _run_with_retry(
+                lambda: self._session.get(url, headers=headers, timeout=API_TIMEOUT)
+            ) as resp:
                 data = await resp.json()
                 if resp.status == 401:
                     self._token = None
@@ -101,8 +136,10 @@ class SiriusHub:
                     return []
                 raw_devices = data if isinstance(data, list) else data.get("devices", [])
                 return [self._flatten_device(d) for d in raw_devices]
-        except asyncio.TimeoutError:
-            _LOGGER.error("Device discovery timed out")
+        except SiriusAuthError:
+            raise
+        except (asyncio.TimeoutError, aiohttp.ClientError):
+            _LOGGER.error("Device discovery failed after retries")
             return []
 
     def _flatten_device(self, device: dict[str, Any]) -> dict[str, Any]:
@@ -172,8 +209,10 @@ class SiriusHub:
         url = f"{self._sirius_endpoint}{API_SET_VALUE.format(device_id=device_id)}"
         headers = {"Authorization": f"Bearer {token}"}
         try:
-            async with self._session.post(
-                url, json=payload, headers=headers, timeout=API_TIMEOUT
+            async with await _run_with_retry(
+                lambda: self._session.post(
+                    url, json=payload, headers=headers, timeout=API_TIMEOUT
+                )
             ) as resp:
                 data = await resp.json()
                 if resp.status == 401:
@@ -185,8 +224,13 @@ class SiriusHub:
                 else:
                     _LOGGER.debug("set_value succeeded for device %s", device_id)
                 return data
+        except SiriusAuthError:
+            raise
         except asyncio.TimeoutError:
-            _LOGGER.error("set_value timed out for %s", device_id)
+            _LOGGER.error("set_value timed out for %s after retries", device_id)
+            return None
+        except aiohttp.ClientError:
+            _LOGGER.error("set_value connection failed for %s after retries", device_id)
             return None
 
 

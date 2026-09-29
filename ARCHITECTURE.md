@@ -216,3 +216,55 @@ The error is raised by `hub.py` in two places:
 - User never loses their device registry entries or automations.
 - Only auth failures trigger reauth — transient timeouts do not
   (see commit `c8ada64`).
+
+---
+
+## ADR-9: Retry with exponential backoff for HTTP calls
+
+**Status**: Accepted
+
+**Context**: The Sirius server is an external cloud service subject to
+network glitches, rate limiting (429), and temporary outages (502/503/504).
+The component uses HTTP for both commands (`setValue`) and polling
+(`getStatus`). A single transient failure should not cause a visible
+failure to the user.
+
+**Decision**: Wrap all HTTP API calls in `_run_with_retry()` — an
+async retry loop that catches `asyncio.TimeoutError` and
+`aiohttp.ClientError`. It retries up to 3 times with a doubling delay
+(2 s, 4 s, 8 s).
+
+The retry only applies to *network-level* failures. Application-level
+failures (wrong credentials → `SiriusAuthError`, HTTP 4xx) propagate
+immediately without retry.
+
+**Consequences**:
+- A brief network blip (1–5 s) will not cause a command to fail.
+- A sustained outage eventually fails cleanly — the last exception
+  propagates to the caller.
+- The MQTT stream is unaffected by HTTP retries (separate connection,
+  see ADR-1).
+- The coordinator's HTTP `getStatus` heartbeat also benefits, reducing
+  false-positive reauth triggers from transient errors.
+
+---
+
+## ADR-10: MQTT reconnect with exponential backoff
+
+**Status**: Accepted
+
+**Context**: paho-mqtt's default reconnect behaviour after a disconnection
+is a fixed 1-second delay. During a cloud outage this can produce a
+thundering-herd of reconnect attempts against the Sirius broker.
+
+**Decision**: Configure paho-mqtt's built-in `reconnect_delay_set()`
+with `min_delay=1, max_delay=120`. The first reconnect attempt happens
+after 1 second; after each failure the delay doubles up to a 2-minute
+cap. When the broker comes back, the first attempt succeeds at the
+current backoff level.
+
+**Consequences**:
+- No unnecessary load on the Sirius broker during outages.
+- Reconnection is automatic — no custom reconnect logic needed.
+- The component continues to work via HTTP polling while MQTT is
+  disconnected (coordinator fallback).

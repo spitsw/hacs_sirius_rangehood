@@ -104,6 +104,8 @@ class SiriusMQTT:
         self._client.on_connect = self._on_connect
         self._client.on_disconnect = self._on_disconnect
         self._client.on_message = self._on_message
+        # Exponential backoff: 1 s → up to 120 s between reconnect attempts
+        self._client.reconnect_delay_set(min_delay=1, max_delay=120)
 
         try:
             self._client.connect_async(self._host, self._port, keepalive=self._KEEPALIVE)
