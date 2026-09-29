@@ -155,17 +155,6 @@ class TestMQTTOnMessage:
         client._on_message(None, None, msg)
         callback.assert_called_once_with("device-1", {"x": 1})
 
-    def test_skips_response_messages(self, mqtt_client):
-        """_on_message should skip response topics (acknowledgements with no state data)."""
-        client, callback = mqtt_client
-        payload = json.dumps({"timestamp": "...", "status": "OK"}).encode("utf-8")
-        msg = MagicMock()
-        msg.topic = "root/codermine/devices/device-1/response/uuid-123"
-        msg.payload = payload
-
-        client._on_message(None, None, msg)
-        callback.assert_not_called()
-
     def test_missing_device_id_in_topic_too(self, mqtt_client):
         """_on_message should not call callback when topic has no device ID."""
         client, callback = mqtt_client
@@ -179,10 +168,10 @@ class TestMQTTOnMessage:
 
 
 class TestMQTTSubscription:
-    """Verify subscribe_device registers topics correctly."""
+    """Verify subscribe_device registers the status topic correctly."""
 
-    def test_subscribes_status_and_response(self):
-        """_subscribe_device should subscribe status and response topics."""
+    def test_subscribes_status(self):
+        """_subscribe_device should subscribe status topic."""
         client = SiriusMQTT("mqtts://host:8883", "user", "pass")
         client._client = MagicMock()
         client._client.is_connected.return_value = True
@@ -190,6 +179,4 @@ class TestMQTTSubscription:
         client.subscribe_device("device-1")
 
         status_topic = "root/codermine/devices/device-1/status"
-        response_topic = "root/codermine/devices/device-1/response/#"
-        client._client.subscribe.assert_any_call(status_topic, qos=1)
-        client._client.subscribe.assert_any_call(response_topic, qos=1)
+        client._client.subscribe.assert_called_once_with(status_topic, qos=1)

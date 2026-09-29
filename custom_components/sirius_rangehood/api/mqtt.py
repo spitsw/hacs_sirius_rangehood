@@ -94,16 +94,11 @@ class SiriusMQTT:
 
         # device ID is always in the topic path:
         #   .../devices/{device_id}/status
-        #   .../devices/{device_id}/response/{uuid}
         parts = topic.split("/")
         try:
             device_id = parts[parts.index("devices") + 1]
         except (ValueError, IndexError):
             _LOGGER.debug("MQTT message on %s: could not extract device ID from topic", topic)
-            return
-
-        # Response messages are simple acknowledgements with no state data
-        if "/response/" in topic:
             return
 
         flat: dict[str, object] = {}
@@ -154,10 +149,8 @@ class SiriusMQTT:
             self._subscribe_device(device_id)
 
     def _subscribe_device(self, device_id: str) -> None:
-        """Subscribe to MQTT topics for a device."""
+        """Subscribe to MQTT status topic for a device."""
         status_topic = f"root/codermine/devices/{device_id}/status"
-        response_topic = f"root/codermine/devices/{device_id}/response/#"
         if self._client:
             self._client.subscribe(status_topic, qos=1)
-            self._client.subscribe(response_topic, qos=1)
-            _LOGGER.debug("Subscribed to MQTT topics for %s", device_id)
+            _LOGGER.debug("Subscribed to MQTT status for %s", device_id)
