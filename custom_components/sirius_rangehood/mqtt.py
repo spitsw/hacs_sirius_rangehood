@@ -132,12 +132,3 @@ class SiriusMQTT:
             self._client.subscribe(status_topic, qos=1)
             self._client.subscribe(response_topic, qos=1)
             _LOGGER.debug("Subscribed to MQTT topics for %s", device_id)
-
-    def unsubscribe_device(self, device_id: str) -> None:
-        """Unsubscribe from device topics."""
-        self._subscribed_devices.discard(device_id)
-        if self._client and self._client.is_connected():
-            status_topic = f"root/codermine/devices/{device_id}/status"
-            response_topic = f"root/codermine/devices/{device_id}/response/#"
-            self._client.unsubscribe(status_topic)
-            self._client.unsubscribe(response_topic)
