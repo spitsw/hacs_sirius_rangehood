@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.light import ATTR_COLOR_TEMP_KELVIN, ColorMode, LightEntity
+from homeassistant.components.light import (
+    ATTR_BRIGHTNESS,
+    ATTR_COLOR_TEMP_KELVIN,
+    ColorMode,
+    LightEntity,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -106,8 +111,8 @@ class SiriusRangehoodLight(CoordinatorEntity, LightEntity):
         """Turn the light on."""
         params = [{"id": CAP_LIGHT_ONOFF, "value": 1.0}]
 
-        if CAP_LIGHT_BRIGHTNESS in kwargs:
-            ha_brightness = kwargs[CAP_LIGHT_BRIGHTNESS]
+        if ATTR_BRIGHTNESS in kwargs:
+            ha_brightness = kwargs[ATTR_BRIGHTNESS]
             pct = LIGHT_BRIGHTNESS_MIN + (ha_brightness / 255) * (
                 LIGHT_BRIGHTNESS_MAX - LIGHT_BRIGHTNESS_MIN
             )

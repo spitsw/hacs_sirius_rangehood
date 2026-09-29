@@ -98,6 +98,7 @@ class _MockLightEntity:
 
 ha_light = sys.modules["homeassistant.components.light"]
 ha_light.ATTR_COLOR_TEMP_KELVIN = "color_temp_kelvin"
+ha_light.ATTR_BRIGHTNESS = "brightness"
 ha_light.ColorMode = MagicMock()
 ha_light.ColorMode.COLOR_TEMP = "color_temp"
 ha_light.LightEntity = _MockLightEntity
