@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Any
@@ -69,18 +70,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Coordinator — sends getStatus heartbeat every 5 min
     async def _async_update_data() -> dict[int, dict[str, Any]]:
-        """Heartbeat: send getStatus for each device."""
+        """Heartbeat: send getStatus for all devices in parallel."""
         _LOGGER.debug("Coordinator update for %d device(s)", len(device_states))
-        for device_id in device_states:
-            try:
-                await hub.async_get_status(device_id)
-            except SiriusAuthError:
+        results = await asyncio.gather(
+            *[hub.async_get_status(did) for did in device_states],
+            return_exceptions=True,
+        )
+        for device_id, result in zip(list(device_states), results):
+            if isinstance(result, SiriusAuthError):
                 _LOGGER.warning("Auth failed for device %d, requesting reauth", device_id)
                 hass.async_create_task(
                     hass.config_entries.async_start_reauth(entry.entry_id)
                 )
                 return dict(device_states)
-            except Exception:  # noqa: BLE001
+            if isinstance(result, Exception):
                 _LOGGER.exception("getStatus failed for device %d", device_id)
         return dict(device_states)
 
@@ -169,12 +172,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     async_call_later(hass, remaining, _refresh_token)
                 )
 
-    if hub._token_expiry:
-        remaining = (hub._token_expiry - datetime.now()).total_seconds() - 60
-        if remaining > 0:
-            entry.async_on_unload(
-                async_call_later(hass, remaining, _refresh_token)
-            )
+    await _refresh_token()
 
     def _trigger_reauth() -> None:
         """Start the reauthentication flow."""
