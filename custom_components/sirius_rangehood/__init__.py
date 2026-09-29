@@ -132,13 +132,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
     )
 
-    # MQTT status callback — updates live capability values
+    # MQTT status callback — called from paho-mqtt background thread
     def _on_mqtt_status(device_id: str, payload: dict[str, Any]) -> None:
+        """Process an MQTT status update. Runs in paho thread — bridge to HA event loop."""
         for did, state in device_states.items():
             if state.get("uid") == device_id:
                 _LOGGER.debug("MQTT status for device %d: %s", did, payload)
                 state.update(payload)
-                coordinator.async_set_updated_data(dict(device_states))
+                hass.loop.call_soon_threadsafe(
+                    coordinator.async_set_updated_data, dict(device_states)
+                )
                 break
 
     # Start MQTT
