@@ -148,9 +148,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await _refresh_token()
 
-    def _reauth() -> None:
-        _trigger_reauth(hass, entry_id)
-
     # Store runtime data
     hass.data[DOMAIN][entry.entry_id] = {
         "hub": hub,
@@ -158,7 +155,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "coordinator": coordinator,
         "device_states": device_states,
         "devices": devices,
-        "reauth": _trigger_reauth,
+        "reauth": lambda: hass.async_create_task(
+            hass.config_entries.async_start_reauth(entry_id)
+        ),
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
