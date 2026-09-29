@@ -7,6 +7,7 @@ from typing import Any
 from homeassistant.components.light import ATTR_COLOR_TEMP_KELVIN, ColorMode, LightEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -62,9 +63,9 @@ class SiriusRangehoodLight(CoordinatorEntity, LightEntity):
         self._entry_id = entry.entry_id
         self._attr_unique_id = f"{device_id}_light"
         self._attr_name = None
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device_id)},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, device_id)},
+        )
 
     def _get_device_state(self) -> dict[str, Any]:
         """Return latest device state."""

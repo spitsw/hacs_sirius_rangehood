@@ -8,6 +8,7 @@ from homeassistant.components.sensor import SensorEntity, SensorEntityDescriptio
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -165,9 +166,9 @@ class SiriusRangehoodSensor(CoordinatorEntity, SensorEntity):
         self._entry_id = entry.entry_id
         self.entity_description = description
         self._attr_unique_id = f"{device_id}_{description.key}"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device_id)},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, device_id)},
+        )
 
     def _get_device_state(self) -> dict[str, Any]:
         """Return latest device state."""

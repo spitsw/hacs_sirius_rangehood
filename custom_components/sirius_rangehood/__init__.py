@@ -81,13 +81,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Shared device state: device_id (int) -> flattened state dict
     device_states: dict[int, dict[str, Any]] = {}
-    # Reverse lookup: uid (str) -> device_id (int), used by MQTT callback
-    uid_to_device_id: dict[str, int] = {}
     for device in devices:
         device_states[device["id"]] = dict(device)
-        uid = device.get("uid")
-        if uid:
-            uid_to_device_id[uid] = device["id"]
 
     entry_id = entry.entry_id
 
@@ -160,18 +155,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _apply_mqtt_update, device_id, payload
         )
 
-    def _apply_mqtt_update(device_uid: str, payload: dict[str, Any]) -> None:
+    def _apply_mqtt_update(device_id: str, payload: dict[str, Any]) -> None:
         """Match device, update state, and notify coordinator (HA event loop only)."""
-        did = uid_to_device_id.get(device_uid)
-        if did is not None and did in device_states:
-            _LOGGER.debug("MQTT status for device %d: %s", did, payload)
-            device_states[did].update(payload)
-            coordinator.async_set_updated_data(dict(device_states))
-        else:
-            _LOGGER.debug("MQTT status for unknown uid %s, reloading", device_uid)
-            hass.async_create_task(
-                hass.config_entries.async_reload(entry_id)
-            )
+        for did, state in device_states.items():
+            if state.get("uid") == device_id:
+                _LOGGER.debug("MQTT status for device %d: %s", did, payload)
+                device_states[did].update(payload)
+                coordinator.async_set_updated_data(dict(device_states))
+                return
+        _LOGGER.debug("MQTT status for unknown uid %s, reloading", device_id)
+        hass.async_create_task(
+            hass.config_entries.async_reload(entry_id)
+        )
 
     # Start MQTT
     mqtt = SiriusMQTT(mqtts_endpoint, username, password, _on_mqtt_status)
