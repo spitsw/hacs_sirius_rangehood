@@ -34,6 +34,11 @@
     }
   },
   "entity": {
+    "switch": {
+      "bi_power": {
+        "name": "Bi-Power"
+      }
+    },
     "sensor": {
       "filter_clean_countdown": {
         "name": "Filter Clean Countdown"
