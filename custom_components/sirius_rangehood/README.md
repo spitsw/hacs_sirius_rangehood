@@ -181,3 +181,17 @@ pytest tests/
 ## License
 
 MIT
+
+## Architecture
+
+Detailed architecture and design decisions are documented in
+[ARCHITECTURE.md](/ARCHITECTURE.md) at the repository root. Key topics:
+
+- **ADR-1**: Why direct paho-mqtt instead of HA's MQTT integration
+- **ADR-2**: Thread-safe MQTT callback bridge via `call_soon_threadsafe`
+- **ADR-3**: Coordinator as single source of truth
+- **ADR-4**: HTTP for commands, MQTT for live state
+- **ADR-5**: Fan speed model (0-4) and percentage mapping
+- **ADR-6**: Proactive JWT token refresh
+- **ADR-7**: Auto-discovery of new devices
+- **ADR-8**: Reauth flow on authentication failure
