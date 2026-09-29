@@ -80,8 +80,9 @@ class SiriusHub:
                     )
                 _LOGGER.info("Sirius auth token refreshed, expires at %s", self._token_expiry.isoformat())
                 return self._token
-        except asyncio.TimeoutError as err:
-            raise SiriusAuthError("Login request timed out") from err
+        except asyncio.TimeoutError:
+            _LOGGER.error("Login request timed out")
+            raise  # not an auth failure — let callers decide how to handle
 
     async def async_discover_devices(self) -> list[dict[str, Any]]:
         """Fetch all devices from the Sirius server and flatten their data."""
