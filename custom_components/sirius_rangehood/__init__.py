@@ -151,8 +151,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         for device in devices:
             mqtt.subscribe_device(device.get("uid", str(device["id"])))
 
-    # Initial refresh sends getStatus to bootstrap live state via MQTT
-    await coordinator.async_config_entry_first_refresh()
+    try:
+        # Initial refresh sends getStatus to bootstrap live state via MQTT
+        await coordinator.async_config_entry_first_refresh()
+    except Exception:  # noqa: BLE001
+        _LOGGER.exception("Initial refresh failed, cleaning up")
+        await mqtt.async_stop()
+        return False
 
     _LOGGER.info(
         "Sirius Rangehood setup complete: %d device(s), %s",
