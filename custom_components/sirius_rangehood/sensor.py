@@ -12,12 +12,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
-    ATTR_FILTER_CLEAN_COUNTDOWN,
-    ATTR_FIRMWARE_VERSION,
-    ATTR_IP_ADDRESS,
-    ATTR_RSSI,
-    ATTR_SSID,
     CAP_BOOST_VALUE,
+    CAP_FILTER_VALUE,
     CAP_FILTER_WORN,
     CAP_TIMER_VALUE,
     DOMAIN,
@@ -25,40 +21,44 @@ from .const import (
     PROP_DEVICE_REF,
     PROP_DEVICE_TYPE,
     PROP_FW_CODE,
+    PROP_FW_VERSION,
+    PROP_IP_ADDRESS,
+    PROP_RSSI,
     PROP_SECURE_ID,
+    PROP_SSID,
 )
 
 SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     # -- Diagnostics from MQTT / live data --
     SensorEntityDescription(
-        key=ATTR_FILTER_CLEAN_COUNTDOWN,
+        key=CAP_FILTER_VALUE,
         translation_key="filter_clean_countdown",
         name="Filter Clean Countdown",
         icon="mdi:air-filter",
     ),
     SensorEntityDescription(
-        key=ATTR_IP_ADDRESS,
+        key=PROP_IP_ADDRESS,
         translation_key="ip_address",
         name="IP Address",
         icon="mdi:ip-network",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
-        key=ATTR_RSSI,
+        key=PROP_RSSI,
         translation_key="rssi",
         name="RSSI",
         icon="mdi:wifi",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
-        key=ATTR_SSID,
+        key=PROP_SSID,
         translation_key="ssid",
         name="SSID",
         icon="mdi:wifi-settings",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
-        key=ATTR_FIRMWARE_VERSION,
+        key=PROP_FW_VERSION,
         translation_key="firmware_version",
         name="Firmware Version",
         icon="mdi:chip",

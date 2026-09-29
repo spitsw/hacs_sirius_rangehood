@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import ATTR_POWER, DOMAIN
+from .const import CAP_POWER, DOMAIN
 from .hub import SiriusAuthError
 
 async def async_setup_entry(
@@ -60,7 +60,7 @@ class SiriusRangehoodPowerSwitch(CoordinatorEntity, SwitchEntity):
     def is_on(self) -> bool | None:
         """Return if the device is powered on."""
         state = self._get_device_state()
-        val = state.get(ATTR_POWER)
+        val = state.get(CAP_POWER)
         if val is not None:
             return bool(val)
         return None
@@ -72,11 +72,11 @@ class SiriusRangehoodPowerSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the device on."""
-        await self._async_send_command([{"id": ATTR_POWER, "value": 1.0}])
+        await self._async_send_command([{"id": CAP_POWER, "value": 1.0}])
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the device off."""
-        await self._async_send_command([{"id": ATTR_POWER, "value": 0.0}])
+        await self._async_send_command([{"id": CAP_POWER, "value": 0.0}])
 
     async def _async_send_command(self, params: list[dict[str, Any]]) -> None:
         """Send a setValue command via the hub."""

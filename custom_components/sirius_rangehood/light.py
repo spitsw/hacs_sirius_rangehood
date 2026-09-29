@@ -11,9 +11,9 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
-    ATTR_LIGHT,
-    ATTR_LIGHT_BRIGHTNESS,
-    ATTR_LIGHT_COLOR_TEMP,
+    CAP_LIGHT_BRIGHTNESS,
+    CAP_LIGHT_COLOR_TEMP,
+    CAP_LIGHT_ONOFF,
     DOMAIN,
     LIGHT_BRIGHTNESS_MAX,
     LIGHT_BRIGHTNESS_MIN,
@@ -74,14 +74,14 @@ class SiriusRangehoodLight(CoordinatorEntity, LightEntity):
     def is_on(self) -> bool | None:
         """Return if light is on."""
         state = self._get_device_state()
-        val = state.get(ATTR_LIGHT)
+        val = state.get(CAP_LIGHT_ONOFF)
         return bool(val) if val is not None else None
 
     @property
     def brightness(self) -> int | None:
         """Return brightness (0-255)."""
         state = self._get_device_state()
-        val = state.get(ATTR_LIGHT_BRIGHTNESS)
+        val = state.get(CAP_LIGHT_BRIGHTNESS)
         if val is not None:
             pct = float(val)
             pct = max(LIGHT_BRIGHTNESS_MIN, min(LIGHT_BRIGHTNESS_MAX, pct))
@@ -95,23 +95,23 @@ class SiriusRangehoodLight(CoordinatorEntity, LightEntity):
     def color_temp_kelvin(self) -> int | None:
         """Return colour temperature in Kelvin."""
         state = self._get_device_state()
-        val = state.get(ATTR_LIGHT_COLOR_TEMP)
+        val = state.get(CAP_LIGHT_COLOR_TEMP)
         if val is not None:
             return round(float(val))
         return None
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the light on."""
-        params = [{"id": ATTR_LIGHT, "value": 1.0}]
+        params = [{"id": CAP_LIGHT_ONOFF, "value": 1.0}]
 
-        if ATTR_LIGHT_BRIGHTNESS in kwargs:
-            ha_brightness = kwargs[ATTR_LIGHT_BRIGHTNESS]
+        if CAP_LIGHT_BRIGHTNESS in kwargs:
+            ha_brightness = kwargs[CAP_LIGHT_BRIGHTNESS]
             pct = LIGHT_BRIGHTNESS_MIN + (ha_brightness / 255) * (
                 LIGHT_BRIGHTNESS_MAX - LIGHT_BRIGHTNESS_MIN
             )
             params.append(
                 {
-                    "id": ATTR_LIGHT_BRIGHTNESS,
+                    "id": CAP_LIGHT_BRIGHTNESS,
                     "value": round(max(LIGHT_BRIGHTNESS_MIN, min(LIGHT_BRIGHTNESS_MAX, pct)), 1),
                 }
             )
@@ -119,14 +119,14 @@ class SiriusRangehoodLight(CoordinatorEntity, LightEntity):
         if ATTR_COLOR_TEMP_KELVIN in kwargs:
             kelvin = kwargs[ATTR_COLOR_TEMP_KELVIN]
             params.append(
-                {"id": ATTR_LIGHT_COLOR_TEMP, "value": round(float(kelvin))}
+                {"id": CAP_LIGHT_COLOR_TEMP, "value": round(float(kelvin))}
             )
 
         await self._async_send_command(params)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the light off."""
-        await self._async_send_command([{"id": ATTR_LIGHT, "value": 0.0}])
+        await self._async_send_command([{"id": CAP_LIGHT_ONOFF, "value": 0.0}])
 
     async def _async_send_command(self, params: list[dict[str, Any]]) -> None:
         """Send a setValue command via the hub."""
