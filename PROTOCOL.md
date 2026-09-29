@@ -355,14 +355,11 @@ ha_brightness = (api_value - 10) / (100 - 10) × 255
 
 ## Light Colour Temperature
 
-The API returns/sets colour temperature in **Kelvin**. When translating to
-mireds (the Home Assistant convention):
+The API returns/sets colour temperature directly in **Kelvin**. Home
+Assistant 2026.3+ uses Kelvin natively via `color_temp_kelvin` — no
+conversion needed.
 
-```
-mireds = 1,000,000 / kelvin
-```
-
-| Metric | Kelvin | Mireds |
-|--------|--------|--------|
-| Warm | 2700K | 370 mireds |
-| Cool | 6000K | 166 mireds |
+| Metric | Kelvin |
+|--------|--------|
+| Warm | 2700K |
+| Cool | 6000K |

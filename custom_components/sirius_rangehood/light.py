@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.light import ColorMode, LightEntity
+from homeassistant.components.light import ATTR_COLOR_TEMP_KELVIN, ColorMode, LightEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -17,9 +17,10 @@ from .const import (
     DOMAIN,
     LIGHT_BRIGHTNESS_MAX,
     LIGHT_BRIGHTNESS_MIN,
-    MAX_MIREDS,
-    MIN_MIREDS,
+    LIGHT_COLOR_TEMP_KELVIN_MAX,
+    LIGHT_COLOR_TEMP_KELVIN_MIN,
 )
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -44,8 +45,8 @@ class SiriusRangehoodLight(CoordinatorEntity, LightEntity):
     _attr_has_entity_name = True
     _attr_color_mode = ColorMode.COLOR_TEMP
     _attr_supported_color_modes = {ColorMode.COLOR_TEMP}
-    _attr_min_mireds = MIN_MIREDS
-    _attr_max_mireds = MAX_MIREDS
+    _attr_min_color_temp_kelvin = LIGHT_COLOR_TEMP_KELVIN_MIN
+    _attr_max_color_temp_kelvin = LIGHT_COLOR_TEMP_KELVIN_MAX
 
     def __init__(
         self,
@@ -90,14 +91,12 @@ class SiriusRangehoodLight(CoordinatorEntity, LightEntity):
         return None
 
     @property
-    def color_temp(self) -> int | None:
-        """Return color temperature in mireds."""
+    def color_temp_kelvin(self) -> int | None:
+        """Return colour temperature in Kelvin."""
         state = self._get_device_state()
         val = state.get(ATTR_LIGHT_COLOR_TEMP)
         if val is not None:
-            kelvin = float(val)
-            if kelvin > 0:
-                return round(1000000 / kelvin)
+            return round(float(val))
         return None
 
     async def async_turn_on(self, **kwargs: Any) -> None:
@@ -116,12 +115,11 @@ class SiriusRangehoodLight(CoordinatorEntity, LightEntity):
                 }
             )
 
-        if ATTR_LIGHT_COLOR_TEMP in kwargs:
-            mireds = kwargs[ATTR_LIGHT_COLOR_TEMP]
-            if mireds > 0:
-                params.append(
-                    {"id": ATTR_LIGHT_COLOR_TEMP, "value": round(1000000 / mireds)}
-                )
+        if ATTR_COLOR_TEMP_KELVIN in kwargs:
+            kelvin = kwargs[ATTR_COLOR_TEMP_KELVIN]
+            params.append(
+                {"id": ATTR_LIGHT_COLOR_TEMP, "value": round(float(kelvin))}
+            )
 
         await self._async_send_command(params)
 

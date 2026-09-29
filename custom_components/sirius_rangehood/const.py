@@ -91,9 +91,9 @@ PERCENTAGE_TO_SPEED = {v: k for k, v in SPEED_TO_PERCENTAGE.items()}
 LIGHT_BRIGHTNESS_MIN = 10
 LIGHT_BRIGHTNESS_MAX = 100
 
-# HA mireds (inverted from Kelvin)
-MIN_MIREDS = 166   # 6000K
-MAX_MIREDS = 370   # 2700K
+# Light colour temperature: API returns/sets Kelvin directly
+LIGHT_COLOR_TEMP_KELVIN_MIN = 2700
+LIGHT_COLOR_TEMP_KELVIN_MAX = 6000
 
 # API request timeout
 API_TIMEOUT = 10
