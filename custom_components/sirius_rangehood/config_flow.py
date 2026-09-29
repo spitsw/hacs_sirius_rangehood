@@ -77,5 +77,58 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_reauth(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Re-authenticate with new credentials."""
-        return await self.async_step_user(user_input)
+        """Re-authenticate with new credentials after a token rejection."""
+        entry = self._get_reauth_entry()
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            session = async_get_clientsession(self.hass)
+            hub = SiriusHub(
+                session,
+                user_input[CONF_SIRIUS_ENDPOINT],
+                user_input[CONF_USERNAME],
+                user_input[CONF_PASSWORD],
+            )
+            try:
+                devices = await hub.async_discover_devices()
+                if not devices:
+                    errors["base"] = "no_devices"
+                else:
+                    _LOGGER.info("Sirius reauth succeeded, %d device(s)", len(devices))
+                    return self.async_update_reload_and_abort(
+                        entry,
+                        data={
+                            **entry.data,
+                            CONF_SIRIUS_ENDPOINT: user_input[CONF_SIRIUS_ENDPOINT],
+                            CONF_SIRIUS_MQTTS_ENDPOINT: user_input[CONF_SIRIUS_MQTTS_ENDPOINT],
+                            CONF_USERNAME: user_input[CONF_USERNAME],
+                            CONF_PASSWORD: user_input[CONF_PASSWORD],
+                        },
+                    )
+            except SiriusAuthError:
+                errors["base"] = "invalid_auth"
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Unexpected error during reauth")
+                errors["base"] = "cannot_connect"
+        else:
+            user_input = {
+                CONF_SIRIUS_ENDPOINT: entry.data.get(CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT),
+                CONF_SIRIUS_MQTTS_ENDPOINT: entry.data.get(CONF_SIRIUS_MQTTS_ENDPOINT, DEFAULT_SIRIUS_MQTTS_ENDPOINT),
+                CONF_USERNAME: entry.data.get(CONF_USERNAME, ""),
+                CONF_PASSWORD: "",
+            }
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_SIRIUS_ENDPOINT, default=user_input[CONF_SIRIUS_ENDPOINT]): str,
+                vol.Required(CONF_SIRIUS_MQTTS_ENDPOINT, default=user_input[CONF_SIRIUS_MQTTS_ENDPOINT]): str,
+                vol.Required(CONF_USERNAME, default=user_input[CONF_USERNAME]): str,
+                vol.Required(CONF_PASSWORD): str,
+            }
+        )
+        return self.async_show_form(
+            step_id="reauth",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={"endpoint": user_input[CONF_SIRIUS_ENDPOINT]},
+        )

@@ -9,6 +9,15 @@
           "password": "Password"
         },
         "description": "Enter your Sirius rangehood cloud credentials."
+      },
+      "reauth": {
+        "data": {
+          "sirius_endpoint": "Sirius HTTPS Endpoint",
+          "sirius_mqtts_endpoint": "Sirius MQTTS Endpoint",
+          "username": "Email",
+          "password": "Password"
+        },
+        "description": "Update your credentials for {endpoint}. The password field is required for reauthentication."
       }
     },
     "error": {
