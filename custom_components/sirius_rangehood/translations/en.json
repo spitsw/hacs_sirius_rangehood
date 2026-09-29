@@ -6,7 +6,8 @@
           "sirius_endpoint": "Sirius HTTPS Endpoint",
           "sirius_mqtts_endpoint": "Sirius MQTTS Endpoint",
           "username": "Email",
-          "password": "Password"
+          "password": "Password",
+          "insecure_tls": "Disable TLS certificate validation"
         },
         "description": "Enter your Sirius rangehood cloud credentials."
       },
@@ -15,7 +16,8 @@
           "sirius_endpoint": "Sirius HTTPS Endpoint",
           "sirius_mqtts_endpoint": "Sirius MQTTS Endpoint",
           "username": "Email",
-          "password": "Password"
+          "password": "Password",
+          "insecure_tls": "Disable TLS certificate validation"
         },
         "description": "Update your credentials for {endpoint}. The password field is required for reauthentication."
       }

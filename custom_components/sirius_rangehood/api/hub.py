@@ -51,13 +51,20 @@ class SiriusHub:
 
     def __init__(
         self,
-        session: aiohttp.ClientSession,
-        sirius_endpoint: str,
-        username: str,
-        password: str,
+        session: aiohttp.ClientSession | None = None,
+        sirius_endpoint: str = "",
+        username: str = "",
+        password: str = "",
         store: Store | None = None,
+        insecure_tls: bool = False,
     ) -> None:
-        self._session = session
+        self._insecure_tls = insecure_tls
+        if insecure_tls:
+            self._session = aiohttp.ClientSession(
+                connector=aiohttp.TCPConnector(ssl=False),
+            )
+        else:
+            self._session = session or aiohttp.ClientSession()
         self._sirius_endpoint = sirius_endpoint.rstrip("/")
         self._username = username
         self._password = password

@@ -15,6 +15,7 @@ from homeassistant.helpers.event import async_call_later, async_track_time_inter
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
+    CONF_INSECURE_TLS,
     CONF_SIRIUS_ENDPOINT,
     CONF_SIRIUS_MQTTS_ENDPOINT,
     DOMAIN,
@@ -69,9 +70,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     mqtts_endpoint = entry.data[CONF_SIRIUS_MQTTS_ENDPOINT]
     username = entry.data[CONF_USERNAME]
     password = entry.data[CONF_PASSWORD]
+    insecure_tls = entry.data.get(CONF_INSECURE_TLS, False)
 
     session = async_get_clientsession(hass)
-    hub = SiriusHub(session, sirius_endpoint, username, password)
+    hub = SiriusHub(session, sirius_endpoint, username, password, insecure_tls=insecure_tls)
 
     await _restore_token(hass, entry, hub)
 
@@ -171,7 +173,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
 
     # Start MQTT
-    mqtt = SiriusMQTT(mqtts_endpoint, username, password, _on_mqtt_status)
+    mqtt = SiriusMQTT(mqtts_endpoint, username, password, _on_mqtt_status, insecure_tls=insecure_tls)
     mqtt_connected = await mqtt.async_start()
     if mqtt_connected:
         for device in devices:

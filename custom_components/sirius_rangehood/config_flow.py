@@ -13,7 +13,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import CONF_SIRIUS_ENDPOINT, CONF_SIRIUS_MQTTS_ENDPOINT, DOMAIN
+from .const import (
+    CONF_INSECURE_TLS,
+    CONF_SIRIUS_ENDPOINT,
+    CONF_SIRIUS_MQTTS_ENDPOINT,
+    DOMAIN,
+)
 from .api import (
     DEFAULT_SIRIUS_ENDPOINT,
     DEFAULT_SIRIUS_MQTTS_ENDPOINT,
@@ -28,6 +33,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_SIRIUS_MQTTS_ENDPOINT, default=DEFAULT_SIRIUS_MQTTS_ENDPOINT): str,
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
+        vol.Optional(CONF_INSECURE_TLS, default=False): bool,
     }
 )
 
@@ -52,11 +58,13 @@ async def _try_discover_devices(
     *None* when errors were set (caller should re-show the form).
     """
     session = async_get_clientsession(hass)
+    insecure = user_input.get(CONF_INSECURE_TLS, False)
     hub = SiriusHub(
         session,
         user_input[CONF_SIRIUS_ENDPOINT],
         user_input[CONF_USERNAME],
         user_input[CONF_PASSWORD],
+        insecure_tls=insecure,
     )
     try:
         devices = await hub.async_discover_devices(retry=False)
@@ -143,6 +151,7 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
                             CONF_SIRIUS_MQTTS_ENDPOINT: user_input[CONF_SIRIUS_MQTTS_ENDPOINT],
                             CONF_USERNAME: user_input[CONF_USERNAME],
                             CONF_PASSWORD: user_input[CONF_PASSWORD],
+                            CONF_INSECURE_TLS: user_input.get(CONF_INSECURE_TLS, False),
                         },
                     )
         else:
@@ -159,6 +168,7 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_SIRIUS_MQTTS_ENDPOINT, default=user_input[CONF_SIRIUS_MQTTS_ENDPOINT]): str,
                 vol.Required(CONF_USERNAME, default=user_input[CONF_USERNAME]): str,
                 vol.Required(CONF_PASSWORD): str,
+                vol.Optional(CONF_INSECURE_TLS, default=entry.data.get(CONF_INSECURE_TLS, False)): bool,
             }
         )
         return self.async_show_form(

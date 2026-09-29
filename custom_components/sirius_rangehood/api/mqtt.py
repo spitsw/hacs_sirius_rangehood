@@ -54,10 +54,12 @@ class SiriusMQTT:
         username: str,
         password: str,
         status_callback: StatusCallback | None = None,
+        insecure_tls: bool = False,
     ) -> None:
         self._username = username
         self._password = password
         self._status_callback = status_callback
+        self._insecure_tls = insecure_tls
         self._client: mqtt.Client | None = None
         self._subscribed_devices: set[str] = set()
 
@@ -106,7 +108,11 @@ class SiriusMQTT:
     async def async_start(self) -> bool:
         """Connect to the MQTTS broker. Returns True if connection initiated."""
         self._client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
-        self._client.tls_set_context(await _create_ssl_context())
+        if self._insecure_tls:
+            # No certificate validation at all — user opted in via config
+            self._client.tls_set_context(ssl._create_unverified_context())
+        else:
+            self._client.tls_set_context(await _create_ssl_context())
         self._client.username_pw_set(self._username, self._password)
         self._client.on_connect = self._on_connect
         self._client.on_disconnect = self._on_disconnect
