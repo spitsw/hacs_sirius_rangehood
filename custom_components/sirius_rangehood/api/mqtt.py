@@ -102,6 +102,10 @@ class SiriusMQTT:
             _LOGGER.debug("MQTT message on %s: could not extract device ID from topic", topic)
             return
 
+        # Response messages are simple acknowledgements with no state data
+        if "/response/" in topic:
+            return
+
         flat: dict[str, object] = {}
         for item in values_list:
             if isinstance(item, dict) and "id" in item:

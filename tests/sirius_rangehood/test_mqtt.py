@@ -149,11 +149,22 @@ class TestMQTTOnMessage:
         client, callback = mqtt_client
         payload = json.dumps({"values": [{"id": "x", "value": 1}]}).encode("utf-8")
         msg = MagicMock()
-        msg.topic = "root/codermine/devices/device-1/response/uuid-123"
+        msg.topic = "root/codermine/devices/device-1/status"
         msg.payload = payload
 
         client._on_message(None, None, msg)
         callback.assert_called_once_with("device-1", {"x": 1})
+
+    def test_skips_response_messages(self, mqtt_client):
+        """_on_message should skip response topics (acknowledgements with no state data)."""
+        client, callback = mqtt_client
+        payload = json.dumps({"timestamp": "...", "status": "OK"}).encode("utf-8")
+        msg = MagicMock()
+        msg.topic = "root/codermine/devices/device-1/response/uuid-123"
+        msg.payload = payload
+
+        client._on_message(None, None, msg)
+        callback.assert_not_called()
 
     def test_missing_device_id_in_topic_too(self, mqtt_client):
         """_on_message should not call callback when topic has no device ID."""
