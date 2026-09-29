@@ -202,12 +202,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if data:
         mqtt: SiriusMQTT = data["mqtt"]
         await mqtt.async_stop()
+        coordinator = data["coordinator"]
+        await coordinator.async_shutdown()
 
-    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unloaded:
-        hass.data[DOMAIN].pop(entry.entry_id, None)
-
-    return unloaded
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
