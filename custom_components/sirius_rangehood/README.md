@@ -195,3 +195,8 @@ Detailed architecture and design decisions are documented in
 - **ADR-6**: Proactive JWT token refresh
 - **ADR-7**: Auto-discovery of new devices
 - **ADR-8**: Reauth flow on authentication failure
+- **ADR-11**: No response topic subscription (acknowledgements
+  carry no state data)
+
+Protocol details (MQTT topics, HTTP endpoints, capability IDs) are
+documented in [PROTOCOL.md](/PROTOCOL.md).

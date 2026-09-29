@@ -268,3 +268,32 @@ current backoff level.
 - Reconnection is automatic — no custom reconnect logic needed.
 - The component continues to work via HTTP polling while MQTT is
   disconnected (coordinator fallback).
+
+---
+
+## ADR-11: MQTT subscriptions — status only, no response topics
+
+**Status**: Accepted
+
+**Context**: The Sirius MQTT broker publishes two message types per device:
+
+- `.../devices/{id}/status` — periodic state snapshots and push updates
+  whenever a value changes. Payload contains a flat `values` array with
+  `{id, value}` pairs that directly map to device capabilities.
+
+- `.../devices/{id}/response/{uuid}` — simple acknowledgements returned
+  after a `setValue` command is processed. Payload contains only a
+  timestamp and a status field (e.g. `{"timestamp": ..., "status": "OK"}`).
+  No state data.
+
+**Decision**: Only subscribe to `/status`. The `/response/#` topic carries
+no information that the component needs — command success is confirmed by
+the subsequent status update that the device publishes via MQTT after
+processing the command.
+
+**Consequences**:
+- Half the subscriptions (one topic per device instead of two).
+- No wasted messages, no payload parsing for acks.
+- The HTTP `set_value` call may still fail with a dropped connection
+  (see ADR-9), but the command is still processed and the status update
+  arrives via MQTT.
