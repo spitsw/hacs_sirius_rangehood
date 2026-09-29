@@ -1,0 +1,13 @@
+{
+  "name": "Sirius Rangehood",
+  "filename": null,
+  "content_in_root": false,
+  "zip_release": false,
+  "render_readme": true,
+  "homeassistant": "2026.3.0",
+  "domain": "sirius_rangehood",
+  "country": [],
+  "iot_class": "cloud_push",
+  "integration_type": "device",
+  "persistent_directory": null
+}
