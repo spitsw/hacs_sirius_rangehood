@@ -6,6 +6,7 @@ import json
 import logging
 import ssl
 from typing import Any, Callable
+from urllib.parse import urlparse
 
 import paho.mqtt.client as mqtt
 
@@ -37,6 +38,9 @@ def _create_ssl_context() -> ssl.SSLContext:
 class SiriusMQTT:
     """Manages a MQTTS connection to the Sirius server."""
 
+    _DEFAULT_PORT = 8883
+    _KEEPALIVE = 60
+
     def __init__(
         self,
         mqtts_endpoint: str,
@@ -44,17 +48,15 @@ class SiriusMQTT:
         password: str,
         status_callback: StatusCallback | None = None,
     ) -> None:
-        self._mqtts_endpoint = mqtts_endpoint.rstrip("/")
         self._username = username
         self._password = password
         self._status_callback = status_callback
         self._client: mqtt.Client | None = None
         self._subscribed_devices: set[str] = set()
 
-        # Parse endpoint: host:port
-        parts = self._mqtts_endpoint.replace("mqtts://", "").split(":")
-        self._host = parts[0]
-        self._port = int(parts[1]) if len(parts) > 1 else 8883
+        parsed = urlparse(mqtts_endpoint)
+        self._host = parsed.hostname or "localhost"
+        self._port = parsed.port or self._DEFAULT_PORT
 
     def _on_connect(self, _client, _userdata, _flags, rc) -> None:  # noqa: ANN001
         """Handle connection events."""
@@ -104,7 +106,7 @@ class SiriusMQTT:
         self._client.on_message = self._on_message
 
         try:
-            self._client.connect_async(self._host, self._port, keepalive=60)
+            self._client.connect_async(self._host, self._port, keepalive=self._KEEPALIVE)
             self._client.loop_start()
             _LOGGER.debug("MQTT connection initiated to %s:%d", self._host, self._port)
             return True

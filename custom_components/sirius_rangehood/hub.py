@@ -44,6 +44,19 @@ class SiriusHub:
                 return self._token
             return await self._async_login()
 
+    def attach_store(self, store: Store) -> None:
+        """Attach a HA Store for token persistence."""
+        self._store = store
+
+    def restore_token(self, token: str | None, expiry_iso: str | None) -> None:
+        """Restore a previously persisted token (used after setup from store)."""
+        self._token = token
+        if expiry_iso:
+            try:
+                self._token_expiry = datetime.fromisoformat(expiry_iso)
+            except ValueError:
+                self._token_expiry = None
+
     async def _async_login(self) -> str:
         """Authenticate and store the token."""
         url = f"{self._sirius_endpoint}{API_LOGIN}"

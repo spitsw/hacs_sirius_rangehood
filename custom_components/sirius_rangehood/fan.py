@@ -103,7 +103,7 @@ class SiriusRangehoodFan(CoordinatorEntity, FanEntity):
         **kwargs: Any,
     ) -> None:
         """Turn the fan on."""
-        if percentage:
+        if percentage is not None:
             await self.async_set_percentage(percentage)
         else:
             await self._async_send_command(CAP_FAN_SPEED, FAN_SPEED_LOW)

@@ -12,7 +12,6 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
-from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
@@ -30,6 +29,35 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.FAN, Platform.LIGHT, Platform.SWITCH, Platform.SENSOR]
 
+# ── Reauth trigger helper (used by coordinator update & device-poll) ──
+
+
+def _trigger_reauth(hass: HomeAssistant, entry_id: str) -> None:
+    """Fire a reauthentication flow."""
+    hass.async_create_task(
+        hass.config_entries.async_start_reauth(entry_id)
+    )
+
+
+# ── Token persistence ──
+
+
+async def _restore_token(
+    hass: HomeAssistant, entry: ConfigEntry, hub: SiriusHub
+) -> None:
+    """Load a previously persisted auth token from HA storage."""
+    from homeassistant.helpers.storage import Store  # noqa: PLC0415 — inline to avoid top-level HA import ordering
+
+    store = Store[dict[str, Any]](hass, 1, f"{DOMAIN}_auth_{entry.entry_id}")
+    hub.attach_store(store)
+
+    stored = await store.async_load()
+    if stored:
+        hub.restore_token(
+            stored.get("token"),
+            stored.get("expiry"),
+        )
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Sirius Rangehood from a config entry."""
@@ -43,19 +71,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     session = async_get_clientsession(hass)
     hub = SiriusHub(session, sirius_endpoint, username, password)
 
-    # Auth token persistence
-    store = Store[dict[str, Any]](hass, 1, f"{DOMAIN}_auth_{entry.entry_id}")
-    hub._store = store
-
-    stored = await store.async_load()
-    if stored:
-        hub._token = stored.get("token")
-        expiry_str = stored.get("expiry")
-        if expiry_str:
-            try:
-                hub._token_expiry = datetime.fromisoformat(expiry_str)
-            except ValueError:
-                hub._token_expiry = None
+    await _restore_token(hass, entry, hub)
 
     # Discover devices — gets static properties + initial capability values
     devices = await hub.async_discover_devices()
@@ -65,8 +81,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Shared device state: device_id (int) -> flattened state dict
     device_states: dict[int, dict[str, Any]] = {}
+    # Reverse lookup: uid (str) -> device_id (int), used by MQTT callback
+    uid_to_device_id: dict[str, int] = {}
     for device in devices:
         device_states[device["id"]] = dict(device)
+        uid = device.get("uid")
+        if uid:
+            uid_to_device_id[uid] = device["id"]
+
+    entry_id = entry.entry_id
 
     # Coordinator — sends getStatus heartbeat every 5 min
     async def _async_update_data() -> dict[int, dict[str, Any]]:
@@ -79,9 +102,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         for device_id, result in zip(list(device_states), results):
             if isinstance(result, SiriusAuthError):
                 _LOGGER.warning("Auth failed for device %d, requesting reauth", device_id)
-                hass.async_create_task(
-                    hass.config_entries.async_start_reauth(entry.entry_id)
-                )
+                _trigger_reauth(hass, entry_id)
                 return dict(device_states)
             if isinstance(result, Exception):
                 _LOGGER.exception("getStatus failed for device %d", device_id)
@@ -116,13 +137,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     sorted(new_ids),
                 )
                 hass.async_create_task(
-                    hass.config_entries.async_reload(entry.entry_id)
+                    hass.config_entries.async_reload(entry_id)
                 )
         except SiriusAuthError:
             _LOGGER.warning("Auth rejected during /devices/ poll, requesting reauth")
-            hass.async_create_task(
-                hass.config_entries.async_start_reauth(entry.entry_id)
-            )
+            _trigger_reauth(hass, entry_id)
         except Exception:  # noqa: BLE001
             _LOGGER.exception("Failed to refresh devices from /devices/")
 
@@ -141,14 +160,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _apply_mqtt_update, device_id, payload
         )
 
-    def _apply_mqtt_update(device_id: str, payload: dict[str, Any]) -> None:
+    def _apply_mqtt_update(device_uid: str, payload: dict[str, Any]) -> None:
         """Match device, update state, and notify coordinator (HA event loop only)."""
-        for did, state in device_states.items():
-            if state.get("uid") == device_id:
-                _LOGGER.debug("MQTT status for device %d: %s", did, payload)
-                state.update(payload)
-                coordinator.async_set_updated_data(dict(device_states))
-                break
+        did = uid_to_device_id.get(device_uid)
+        if did is not None and did in device_states:
+            _LOGGER.debug("MQTT status for device %d: %s", did, payload)
+            device_states[did].update(payload)
+            coordinator.async_set_updated_data(dict(device_states))
+        else:
+            _LOGGER.debug("MQTT status for unknown uid %s, reloading", device_uid)
+            hass.async_create_task(
+                hass.config_entries.async_reload(entry_id)
+            )
 
     # Start MQTT
     mqtt = SiriusMQTT(mqtts_endpoint, username, password, _on_mqtt_status)
@@ -188,11 +211,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await _refresh_token()
 
-    def _trigger_reauth() -> None:
-        """Start the reauthentication flow."""
-        hass.async_create_task(
-            hass.config_entries.async_start_reauth(entry.entry_id)
-        )
+    def _reauth() -> None:
+        _trigger_reauth(hass, entry_id)
 
     # Store runtime data
     hass.data[DOMAIN][entry.entry_id] = {
