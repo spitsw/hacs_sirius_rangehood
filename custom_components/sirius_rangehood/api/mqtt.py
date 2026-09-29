@@ -93,8 +93,15 @@ class SiriusMQTT:
         values_list = payload.pop("values", [])
         device_id = payload.get("deviceId")
         if not device_id:
-            _LOGGER.debug("MQTT message on %s missing deviceId", topic)
-            return
+            # device ID is embedded in the topic:
+            #   .../devices/{device_id}/status
+            #   .../devices/{device_id}/response/{uuid}
+            parts = topic.split("/")
+            try:
+                device_id = parts[parts.index("devices") + 1]
+            except (ValueError, IndexError):
+                _LOGGER.debug("MQTT message on %s: could not extract device ID from topic", topic)
+                return
 
         flat: dict[str, object] = {}
         for item in values_list:

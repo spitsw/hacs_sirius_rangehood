@@ -148,11 +148,22 @@ class TestMQTTOnMessage:
         callback.assert_not_called()
 
     def test_missing_device_id(self, mqtt_client):
-        """_on_message should not call callback when deviceId is missing."""
+        """_on_message should extract device ID from topic when payload has none."""
         client, callback = mqtt_client
         payload = json.dumps({"values": [{"id": "x", "value": 1}]}).encode("utf-8")
         msg = MagicMock()
-        msg.topic = "topic"
+        msg.topic = "root/codermine/devices/device-1/response/uuid-123"
+        msg.payload = payload
+
+        client._on_message(None, None, msg)
+        callback.assert_called_once_with("device-1", {"x": 1})
+
+    def test_missing_device_id_in_topic_too(self, mqtt_client):
+        """_on_message should not call callback when both payload and topic lack deviceId."""
+        client, callback = mqtt_client
+        payload = json.dumps({"values": [{"id": "x", "value": 1}]}).encode("utf-8")
+        msg = MagicMock()
+        msg.topic = "root/codermine/status"
         msg.payload = payload
 
         client._on_message(None, None, msg)
