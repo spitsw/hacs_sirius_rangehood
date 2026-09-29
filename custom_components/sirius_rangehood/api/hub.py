@@ -243,7 +243,13 @@ class SiriusHub:
             _LOGGER.error("set_value timed out for %s after retries", device_id)
             return None
         except aiohttp.ClientError:
-            _LOGGER.error("set_value connection failed for %s after retries", device_id)
+            # Likely a connection reset after the server already processed the
+            # command — the device publishes the new state via MQTT regardless.
+            _LOGGER.warning(
+                "set_value connection lost for %s after retries "
+                "(command may have been processed; check for MQTT status update)",
+                device_id,
+            )
             return None
 
 
