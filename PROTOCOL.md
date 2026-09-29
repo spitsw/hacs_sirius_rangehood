@@ -45,7 +45,7 @@ The `expires` value is the token lifetime in seconds. The token is sent as a
 
 ### Base URL
 
-The base URL is user-provided (e.g. `https://api.sirius.example.com`).
+The default base URL is `https://sirius.iotpga.it`.
 
 ### GET `/devices/`
 
@@ -63,21 +63,21 @@ Authorization: Bearer <JWT>
 ```json
 [
     {
-        "id": 11662,
-        "uid": "PGA-00022667",
+        "id": 10000,
+        "uid": "PGA-DEVICE001",
         "description": "Rangehood",
         "enable": true,
         "properties": [
-            { "id": "property.device.ref", "value": "74870" },
-            { "id": "property.device.type", "value": "05989063502" },
-            { "id": "property.device_name", "value": "SL926 DL 850 T-SHAPE ARISIT" },
+            { "id": "property.device.ref", "value": "REF-001" },
+            { "id": "property.device.type", "value": "TYPE-A12345" },
+            { "id": "property.device_name", "value": "EXAMPLE RANGEHOOD MODEL" },
             { "id": "property.device_class", "value": "0" },
-            { "id": "property.device.fw.code", "value": "10" },
-            { "id": "property.device.secureId", "value": "1cdab1c29b" },
-            { "id": "property.device.fw.version", "value": "1" },
-            { "id": "property.device.network.rssi", "value": "-79" },
-            { "id": "property.device.network.ssid", "value": "ASIO" },
-            { "id": "property.device.network.address", "value": "10.8.0.178" }
+            { "id": "property.device.fw.code", "value": "V02" },
+            { "id": "property.device.secureId", "value": "abcd1234ef" },
+            { "id": "property.device.fw.version", "value": "2" },
+            { "id": "property.device.network.rssi", "value": "-65" },
+            { "id": "property.device.network.ssid", "value": "HomeWiFi" },
+            { "id": "property.device.network.address", "value": "192.168.1.100" }
         ],
         "capabilities": [
             { "capabilityUid": "device.onOff",            "capabilityType": "4", "value": 0.0,   "minValue": 0.0,   "maxValue": 1.0 },
@@ -133,7 +133,7 @@ Authorization: Bearer <JWT>
     "command": "getStatus",
     "deviceType": "smartphone",
     "parameters": [],
-    "requestId": "9a41e26e-eaec-4411-aaea-579b8c78b22c"
+    "requestId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 }
 ```
 
@@ -146,7 +146,7 @@ Authorization: Bearer <JWT>
     "parameters": [
         { "id": "device.fanSpeed", "value": 1 }
     ],
-    "requestId": "709f6b07-666e-45d8-9679-0681c91906e3"
+    "requestId": "aaaaaaaa-bbbb-cccc-dddd-ffffffffffff"
 }
 ```
 
@@ -199,8 +199,10 @@ integer.
 
 The MQTT broker is a separate endpoint from the REST API, provided as
 `mqtts://host:port`. Connections use TLS (MQTTS) with certificate
-verification (`ssl.CERT_REQUIRED`). The same account email and password
-are used for MQTT authentication.
+verification — the certificate chain and hostname are validated, but
+**expired certificates are accepted** (the production server has a valid
+certificate that has passed its expiry date). The same account email and
+password are used for MQTT authentication.
 
 ### Topic Structure
 
@@ -210,7 +212,7 @@ are used for MQTT authentication.
 | `root/codermine/devices/{uid}/response/{requestId}` | Device → Client | Command acknowledgement |
 
 The `{uid}` is the device's `uid` field from the device list
-(e.g. `PGA-00022667`), not the numeric `id`.
+(e.g. `PGA-DEVICE001`), not the numeric `id`.
 
 ### Status Topic
 
@@ -218,7 +220,7 @@ The `{uid}` is the device's `uid` field from the device list
 
 ```json
 {
-    "deviceId": "PGA-00022667",
+    "deviceId": "PGA-DEVICE001",
     "values": [
         { "id": "device.onOff", "value": 0 },
         { "id": "device.biPowerEnabled", "value": 1 },

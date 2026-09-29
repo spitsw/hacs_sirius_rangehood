@@ -98,6 +98,9 @@ MAX_MIREDS = 370   # 2700K
 # API request timeout
 API_TIMEOUT = 10
 
+# Default server endpoint
+DEFAULT_SIRIUS_ENDPOINT = "https://sirius.iotpga.it"
+
 # Heartbeat interval — sends getStatus to trigger MQTT refresh (seconds)
 GET_STATUS_INTERVAL = 300
 
