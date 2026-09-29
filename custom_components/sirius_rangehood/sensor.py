@@ -137,10 +137,11 @@ async def async_setup_entry(
 
     entities = []
     for device in devices:
+        did = device.get("uid", str(device["id"]))
         for description in SENSOR_DESCRIPTIONS:
             entities.append(
                 SiriusRangehoodSensor(
-                    coordinator, device["id"], device, entry, description
+                    coordinator, did, device, entry, description
                 )
             )
 
@@ -155,7 +156,7 @@ class SiriusRangehoodSensor(CoordinatorEntity, SensorEntity):
     def __init__(
         self,
         coordinator,
-        device_id: int,
+        device_id: str,
         device: dict[str, Any],
         entry: ConfigEntry,
         description: SensorEntityDescription,

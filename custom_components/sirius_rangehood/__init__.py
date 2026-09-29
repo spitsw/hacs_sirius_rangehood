@@ -81,15 +81,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.warning("No Sirius devices discovered")
         return False
 
-    # Shared device state: device_id (int) -> flattened state dict
-    device_states: dict[int, dict[str, Any]] = {}
+    # Shared device state: uid (str) -> flattened state dict
+    device_states: dict[str, dict[str, Any]] = {}
     for device in devices:
-        device_states[device["id"]] = dict(device)
+        did = device.get("uid", str(device["id"]))
+        device_states[did] = dict(device)
 
     entry_id = entry.entry_id
 
     # Coordinator — sends getStatus heartbeat every 5 min
-    async def _async_update_data() -> dict[int, dict[str, Any]]:
+    async def _async_update_data() -> dict[str, dict[str, Any]]:
         """Heartbeat: send getStatus for all devices in parallel."""
         _LOGGER.debug("Coordinator update for %d device(s)", len(device_states))
         results = await asyncio.gather(
@@ -98,11 +99,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         for device_id, result in zip(list(device_states), results):
             if isinstance(result, SiriusAuthError):
-                _LOGGER.warning("Auth failed for device %d, requesting reauth", device_id)
+                _LOGGER.warning("Auth failed for device %s, requesting reauth", device_id)
                 _trigger_reauth(hass, entry_id)
                 return dict(device_states)
             if isinstance(result, Exception):
-                _LOGGER.exception("getStatus failed for device %d", device_id)
+                _LOGGER.exception("getStatus failed for device %s", device_id)
         return dict(device_states)
 
     coordinator = DataUpdateCoordinator(
@@ -118,15 +119,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Poll /devices/ for new devices and static property changes."""
         try:
             fresh = await hub.async_discover_devices()
-            new_ids: set[int] = set()
+            new_ids: list[str] = []
             for device in fresh:
-                did = device["id"]
+                did = device.get("uid", str(device["id"]))
                 if did in device_states:
                     for k, v in device.items():
                         if k not in LIVE_CAPABILITY_KEYS:
                             device_states[did][k] = v
                 else:
-                    new_ids.add(did)
+                    new_ids.append(did)
 
             if new_ids:
                 _LOGGER.info(
@@ -159,16 +160,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     def _apply_mqtt_update(device_id: str, payload: dict[str, Any]) -> None:
         """Match device, update state, and notify coordinator (HA event loop only)."""
-        for did, state in device_states.items():
-            if state.get("uid") == device_id:
-                _LOGGER.debug("MQTT status for device %d: %s", did, payload)
-                device_states[did].update(payload)
-                coordinator.async_set_updated_data(dict(device_states))
-                return
-        _LOGGER.debug("MQTT status for unknown uid %s, reloading", device_id)
-        hass.async_create_task(
-            hass.config_entries.async_reload(entry_id)
-        )
+        if device_id in device_states:
+            _LOGGER.debug("MQTT status for device %s: %s", device_id, payload)
+            device_states[device_id].update(payload)
+            coordinator.async_set_updated_data(dict(device_states))
+        else:
+            _LOGGER.debug("MQTT status for unknown uid %s, reloading", device_id)
+            hass.async_create_task(
+                hass.config_entries.async_reload(entry_id)
+            )
 
     # Start MQTT
     mqtt = SiriusMQTT(mqtts_endpoint, username, password, _on_mqtt_status)

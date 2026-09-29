@@ -27,7 +27,8 @@ async def async_setup_entry(
 
     entities = []
     for device in devices:
-        entities.append(SiriusRangehoodPowerSwitch(coordinator, device["id"], device, entry))
+        did = device.get("uid", str(device["id"]))
+        entities.append(SiriusRangehoodPowerSwitch(coordinator, did, device, entry))
 
     async_add_entities(entities)
 
@@ -40,7 +41,7 @@ class SiriusRangehoodPowerSwitch(CoordinatorEntity, SwitchEntity):
     def __init__(
         self,
         coordinator,
-        device_id: int,
+        device_id: str,
         device: dict[str, Any],
         entry: ConfigEntry,
     ) -> None:

@@ -177,10 +177,10 @@ class SiriusHub:
 
         return flat
 
-    async def async_get_status(self, device_id: int) -> str:
+    async def async_get_status(self, device_id: str) -> str:
         """Send a getStatus command. Device status arrives asynchronously via MQTT."""
         request_id = str(uuid.uuid4())
-        _LOGGER.debug("getStatus for device %d (requestId=%s)", device_id, request_id)
+        _LOGGER.debug("getStatus for device %s (requestId=%s)", device_id, request_id)
         payload = {
             "command": "getStatus",
             "deviceType": "smartphone",
@@ -191,12 +191,12 @@ class SiriusHub:
         return request_id
 
     async def async_send_command(
-        self, device_id: int, parameters: list[dict[str, Any]]
+        self, device_id: str, parameters: list[dict[str, Any]]
     ) -> str:
         """Send a setValue command. Device auto-publishes updated status via MQTT."""
         request_id = str(uuid.uuid4())
         _LOGGER.debug(
-            "setValue for device %d: %s (requestId=%s)", device_id, parameters, request_id
+            "setValue for device %s: %s (requestId=%s)", device_id, parameters, request_id
         )
         payload = {
             "command": "setValue",
@@ -208,7 +208,7 @@ class SiriusHub:
         return request_id
 
     async def _post_set_value(
-        self, device_id: int, payload: dict[str, Any]
+        self, device_id: str, payload: dict[str, Any]
     ) -> dict[str, Any] | None:
         """Low-level POST to /devices/{id}/set_value."""
         token = await self.async_ensure_token()
