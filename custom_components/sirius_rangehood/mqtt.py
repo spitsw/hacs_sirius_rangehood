@@ -24,7 +24,9 @@ def _create_ssl_context() -> ssl.SSLContext:
     context = ssl.create_default_context()
 
     def _verify_callback(conn, cert, errno, depth, preverify_ok):  # noqa: ANN001
-        if errno == ssl.X509_V_ERR_CERT_HAS_EXPIRED:
+        # X509_V_ERR_CERT_HAS_EXPIRED = 10 — use raw value because this
+        # constant may not be exposed by the ssl module on all platforms.
+        if errno == 10:
             return True
         return preverify_ok
 
