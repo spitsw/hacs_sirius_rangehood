@@ -66,12 +66,12 @@ class SiriusHub:
         self._token_expiry: datetime | None = None
         self._lock = asyncio.Lock()
 
-    async def async_ensure_token(self) -> str:
+    async def async_ensure_token(self, retry: bool = True) -> str:
         """Return a valid token, refreshing or logging in if needed."""
         async with self._lock:
             if self._token and self._token_expiry and self._token_expiry > datetime.now():
                 return self._token
-            return await self._async_login()
+            return await self._async_login(retry=retry)
 
     def attach_store(self, store: Store) -> None:
         """Attach a HA Store for token persistence."""
@@ -86,7 +86,7 @@ class SiriusHub:
             except ValueError:
                 self._token_expiry = None
 
-    async def _async_login(self) -> str:
+    async def _async_login(self, retry: bool = True) -> str:
         """Authenticate and store the token."""
         url = f"{self._sirius_endpoint}{API_LOGIN}"
         payload = {
@@ -95,7 +95,8 @@ class SiriusHub:
         }
         try:
             async with await _run_with_retry(
-                lambda: self._session.post(url, json=payload, timeout=API_TIMEOUT)
+                lambda: self._session.post(url, json=payload, timeout=API_TIMEOUT),
+                retries=_MAX_RETRIES if retry else 1,
             ) as resp:
                 data = await resp.json()
                 if resp.status != 200 or not data.get("JWT"):
@@ -114,17 +115,22 @@ class SiriusHub:
         except SiriusAuthError:
             raise  # never retry a credential rejection
         except (asyncio.TimeoutError, aiohttp.ClientError):
-            _LOGGER.error("Login request failed after retries")
+            _LOGGER.error("Login request failed%s", " after retries" if retry else "")
             raise
 
-    async def async_discover_devices(self) -> list[dict[str, Any]]:
-        """Fetch all devices from the Sirius server and flatten their data."""
-        token = await self.async_ensure_token()
+    async def async_discover_devices(self, retry: bool = True) -> list[dict[str, Any]]:
+        """Fetch all devices from the Sirius server and flatten their data.
+
+        When *retry* is False (config flow), a single attempt is made —
+        the caller can resubmit on failure.
+        """
+        token = await self.async_ensure_token(retry=retry)
         url = f"{self._sirius_endpoint}{API_DEVICES}"
         headers = {"Authorization": f"Bearer {token}"}
+        http_call = lambda: self._session.get(url, headers=headers, timeout=API_TIMEOUT)
         try:
-            async with await _run_with_retry(
-                lambda: self._session.get(url, headers=headers, timeout=API_TIMEOUT)
+            async with (
+                await _run_with_retry(http_call, retries=_MAX_RETRIES if retry else 1)
             ) as resp:
                 data = await resp.json()
                 if resp.status == 401:
@@ -139,7 +145,7 @@ class SiriusHub:
         except SiriusAuthError:
             raise
         except (asyncio.TimeoutError, aiohttp.ClientError):
-            _LOGGER.error("Device discovery failed after retries")
+            _LOGGER.error("Device discovery failed%s", " after retries" if retry else "")
             return []
 
     def _flatten_device(self, device: dict[str, Any]) -> dict[str, Any]:

@@ -59,7 +59,7 @@ async def _try_discover_devices(
         user_input[CONF_PASSWORD],
     )
     try:
-        devices = await hub.async_discover_devices()
+        devices = await hub.async_discover_devices(retry=False)
         if not devices:
             _LOGGER.warning("Sirius login succeeded but no devices found")
             errors["base"] = "no_devices"
