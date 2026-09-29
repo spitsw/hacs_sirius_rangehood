@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import ssl
@@ -15,14 +16,20 @@ _LOGGER = logging.getLogger(__name__)
 StatusCallback = Callable[[str, dict[str, Any]], None]  # device_id, payload
 
 
-def _create_ssl_context() -> ssl.SSLContext:
+async def _create_ssl_context() -> ssl.SSLContext:
     """Create an SSL context that validates the certificate chain but ignores expiry.
 
     The Sirius MQTT server has a valid certificate that has expired; this
     context skips the expiry check while still validating everything else
     (chain of trust, hostname, etc.).
+
+    ``ssl.create_default_context()`` calls ``load_default_certs()`` which
+    reads system certificate files from disk — blocking I/O that must not
+    run on the event loop.
     """
-    context = ssl.create_default_context()
+    context = await asyncio.get_event_loop().run_in_executor(
+        None, ssl.create_default_context
+    )
 
     def _verify_callback(conn, cert, errno, depth, preverify_ok):  # noqa: ANN001
         # X509_V_ERR_CERT_HAS_EXPIRED = 10 — use raw value because this
@@ -99,7 +106,7 @@ class SiriusMQTT:
     async def async_start(self) -> bool:
         """Connect to the MQTTS broker. Returns True if connection initiated."""
         self._client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
-        self._client.tls_set_context(_create_ssl_context())
+        self._client.tls_set_context(await _create_ssl_context())
         self._client.username_pw_set(self._username, self._password)
         self._client.on_connect = self._on_connect
         self._client.on_disconnect = self._on_disconnect
