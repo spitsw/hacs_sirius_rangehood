@@ -78,6 +78,10 @@ class SiriusHub:
         try:
             async with self._session.get(url, headers=headers, timeout=API_TIMEOUT) as resp:
                 data = await resp.json()
+                if resp.status == 401:
+                    self._token = None
+                    self._token_expiry = None
+                    raise SiriusAuthError("JWT rejected by /devices/")
                 if resp.status != 200:
                     _LOGGER.error("Failed to discover devices: %s", data)
                     return []
@@ -158,6 +162,10 @@ class SiriusHub:
                 url, json=payload, headers=headers, timeout=API_TIMEOUT
             ) as resp:
                 data = await resp.json()
+                if resp.status == 401:
+                    self._token = None
+                    self._token_expiry = None
+                    raise SiriusAuthError("JWT rejected by set_value")
                 if resp.status != 200:
                     _LOGGER.error("set_value failed for %s: %s", device_id, data)
                 else:

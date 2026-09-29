@@ -20,6 +20,7 @@ from .const import (
     LIGHT_COLOR_TEMP_KELVIN_MAX,
     LIGHT_COLOR_TEMP_KELVIN_MIN,
 )
+from .hub import SiriusAuthError
 
 
 async def async_setup_entry(
@@ -131,4 +132,7 @@ class SiriusRangehoodLight(CoordinatorEntity, LightEntity):
         """Send a setValue command via the hub."""
         data = self.hass.data[DOMAIN][self._entry_id]
         hub = data["hub"]
-        await hub.async_send_command(self._device_id, params)
+        try:
+            await hub.async_send_command(self._device_id, params)
+        except SiriusAuthError:
+            data.get("reauth", lambda: None)()

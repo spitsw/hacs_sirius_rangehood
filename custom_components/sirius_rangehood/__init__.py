@@ -22,7 +22,7 @@ from .const import (
     GET_STATUS_INTERVAL,
     LIVE_CAPABILITY_KEYS,
 )
-from .hub import SiriusHub
+from .hub import SiriusHub, SiriusAuthError
 from .mqtt import SiriusMQTT
 
 _LOGGER = logging.getLogger(__name__)
@@ -74,6 +74,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         for device_id in device_states:
             try:
                 await hub.async_get_status(device_id)
+            except SiriusAuthError:
+                _LOGGER.warning("Auth failed for device %d, requesting reauth", device_id)
+                hass.async_create_task(
+                    hass.config_entries.async_start_reauth(entry.entry_id)
+                )
+                return dict(device_states)
             except Exception:  # noqa: BLE001
                 _LOGGER.exception("getStatus failed for device %d", device_id)
         return dict(device_states)
@@ -109,6 +115,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 hass.async_create_task(
                     hass.config_entries.async_reload(entry.entry_id)
                 )
+        except SiriusAuthError:
+            _LOGGER.warning("Auth rejected during /devices/ poll, requesting reauth")
+            hass.async_create_task(
+                hass.config_entries.async_start_reauth(entry.entry_id)
+            )
         except Exception:  # noqa: BLE001
             _LOGGER.exception("Failed to refresh devices from /devices/")
 
@@ -165,6 +176,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 async_call_later(hass, remaining, _refresh_token)
             )
 
+    def _trigger_reauth() -> None:
+        """Start the reauthentication flow."""
+        hass.async_create_task(
+            hass.config_entries.async_start_reauth(entry.entry_id)
+        )
+
     # Store runtime data
     hass.data[DOMAIN][entry.entry_id] = {
         "hub": hub,
@@ -172,6 +189,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "coordinator": coordinator,
         "device_states": device_states,
         "devices": devices,
+        "reauth": _trigger_reauth,
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

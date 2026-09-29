@@ -20,6 +20,7 @@ from .const import (
     PERCENTAGE_TO_SPEED,
     SPEED_TO_PERCENTAGE,
 )
+from .hub import SiriusAuthError
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -115,6 +116,9 @@ class SiriusRangehoodFan(CoordinatorEntity, FanEntity):
         """Send a setValue command for a single capability."""
         data = self.hass.data[DOMAIN][self._entry_id]
         hub = data["hub"]
-        await hub.async_send_command(
-            self._device_id, [{"id": capability_id, "value": value}],
-        )
+        try:
+            await hub.async_send_command(
+                self._device_id, [{"id": capability_id, "value": value}],
+            )
+        except SiriusAuthError:
+            data.get("reauth", lambda: None)()
