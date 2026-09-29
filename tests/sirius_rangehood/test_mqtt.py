@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.sirius_rangehood.mqtt import (
+from custom_components.sirius_rangehood.api.mqtt import (
     SiriusMQTT,
     _create_ssl_context,
 )

@@ -12,12 +12,11 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (
+from .api import (
     CAP_BOOST_VALUE,
     CAP_FILTER_VALUE,
     CAP_FILTER_WORN,
     CAP_TIMER_VALUE,
-    DOMAIN,
     PROP_DEVICE_CLASS,
     PROP_DEVICE_REF,
     PROP_DEVICE_TYPE,
@@ -28,6 +27,7 @@ from .const import (
     PROP_SECURE_ID,
     PROP_SSID,
 )
+from .const import DOMAIN
 
 SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     # -- Diagnostics from MQTT / live data --

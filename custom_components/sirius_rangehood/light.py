@@ -11,17 +11,17 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (
+from .api import (
     CAP_LIGHT_BRIGHTNESS,
     CAP_LIGHT_COLOR_TEMP,
     CAP_LIGHT_ONOFF,
-    DOMAIN,
     LIGHT_BRIGHTNESS_MAX,
     LIGHT_BRIGHTNESS_MIN,
     LIGHT_COLOR_TEMP_KELVIN_MAX,
     LIGHT_COLOR_TEMP_KELVIN_MIN,
 )
-from .hub import SiriusAuthError
+from .api import SiriusAuthError
+from .const import DOMAIN
 
 
 async def async_setup_entry(

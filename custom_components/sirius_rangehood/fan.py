@@ -11,9 +11,8 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (
+from .api import (
     CAP_FAN_SPEED,
-    DOMAIN,
     FAN_SPEED_COUNT,
     FAN_SPEED_LOW,
     FAN_SPEED_OFF,
@@ -21,7 +20,8 @@ from .const import (
     PROP_FW_VERSION,
     SPEED_TO_PERCENTAGE,
 )
-from .hub import SiriusAuthError
+from .api import SiriusAuthError
+from .const import DOMAIN
 
 async def async_setup_entry(
     hass: HomeAssistant,

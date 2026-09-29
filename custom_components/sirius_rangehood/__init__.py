@@ -17,13 +17,15 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .const import (
     CONF_SIRIUS_ENDPOINT,
     CONF_SIRIUS_MQTTS_ENDPOINT,
-    DEVICES_POLL_INTERVAL,
     DOMAIN,
+)
+from .api import (
+    DEVICES_POLL_INTERVAL,
     GET_STATUS_INTERVAL,
     LIVE_CAPABILITY_KEYS,
 )
-from .hub import SiriusHub, SiriusAuthError
-from .mqtt import SiriusMQTT
+from .api import SiriusHub, SiriusAuthError
+from .api import SiriusMQTT
 
 _LOGGER = logging.getLogger(__name__)
 

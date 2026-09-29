@@ -13,14 +13,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import (
-    CONF_SIRIUS_ENDPOINT,
-    CONF_SIRIUS_MQTTS_ENDPOINT,
+from .const import CONF_SIRIUS_ENDPOINT, CONF_SIRIUS_MQTTS_ENDPOINT, DOMAIN
+from .api import (
     DEFAULT_SIRIUS_ENDPOINT,
     DEFAULT_SIRIUS_MQTTS_ENDPOINT,
-    DOMAIN,
 )
-from .hub import SiriusHub, SiriusAuthError
+from .api import SiriusHub, SiriusAuthError
 
 _LOGGER = logging.getLogger(__name__)
 

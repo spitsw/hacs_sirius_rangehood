@@ -11,8 +11,9 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CAP_POWER, DOMAIN
-from .hub import SiriusAuthError
+from .api import CAP_POWER
+from .api import SiriusAuthError
+from .const import DOMAIN
 
 async def async_setup_entry(
     hass: HomeAssistant,

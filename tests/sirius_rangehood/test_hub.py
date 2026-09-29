@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.sirius_rangehood.hub import SiriusAuthError, SiriusHub
+from custom_components.sirius_rangehood.api.hub import SiriusAuthError, SiriusHub
 
 
 class TestFlattenDevice:

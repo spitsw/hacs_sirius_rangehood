@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from custom_components.sirius_rangehood.const import (
+from custom_components.sirius_rangehood.api import (
     CAP_FAN_SPEED,
     DEFAULT_SIRIUS_ENDPOINT,
     DEFAULT_SIRIUS_MQTTS_ENDPOINT,
-    DOMAIN,
     FAN_SPEED_BOOST,
     FAN_SPEED_HIGH,
     FAN_SPEED_LOW,
@@ -15,6 +14,7 @@ from custom_components.sirius_rangehood.const import (
     PERCENTAGE_TO_SPEED,
     SPEED_TO_PERCENTAGE,
 )
+from custom_components.sirius_rangehood.const import DOMAIN
 
 
 def _nearest_speed(percentage: int) -> int:
