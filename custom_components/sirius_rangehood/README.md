@@ -193,7 +193,7 @@ Detailed architecture and design decisions are documented in
 - **ADR-4**: HTTP for commands, MQTT for live state
 - **ADR-5**: Fan speed model (0-4) and percentage mapping
 - **ADR-6**: Proactive JWT token refresh
-- **ADR-7**: Auto-discovery of new devices
+- **ADR-7**: Discovery via MQTT unknown-UID reload
 - **ADR-8**: Reauth flow on authentication failure
 - **ADR-11**: No response topic subscription (acknowledgements
   carry no state data)

@@ -11,7 +11,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.event import async_call_later, async_track_time_interval
+from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
@@ -20,46 +21,13 @@ from .const import (
     CONF_SIRIUS_MQTTS_ENDPOINT,
     DOMAIN,
 )
-from .api import (
-    DEVICES_POLL_INTERVAL,
-    GET_STATUS_INTERVAL,
-    LIVE_CAPABILITY_KEYS,
-)
+from .api import GET_STATUS_INTERVAL
 from .api import SiriusHub, SiriusAuthError
 from .api import SiriusMQTT
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.FAN, Platform.LIGHT, Platform.SWITCH, Platform.SENSOR]
-
-# ── Reauth trigger helper (used by coordinator update & device-poll) ──
-
-
-def _trigger_reauth(hass: HomeAssistant, entry_id: str) -> None:
-    """Fire a reauthentication flow."""
-    hass.async_create_task(
-        hass.config_entries.async_start_reauth(entry_id)
-    )
-
-
-# ── Token persistence ──
-
-
-async def _restore_token(
-    hass: HomeAssistant, entry: ConfigEntry, hub: SiriusHub
-) -> None:
-    """Load a previously persisted auth token from HA storage."""
-    from homeassistant.helpers.storage import Store  # noqa: PLC0415 — inline to avoid top-level HA import ordering
-
-    store = Store[dict[str, Any]](hass, 1, f"{DOMAIN}_auth_{entry.entry_id}")
-    hub.attach_store(store)
-
-    stored = await store.async_load()
-    if stored:
-        hub.restore_token(
-            stored.get("token"),
-            stored.get("expiry"),
-        )
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -75,7 +43,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     session = async_get_clientsession(hass)
     hub = SiriusHub(session, sirius_endpoint, username, password, insecure_tls=insecure_tls)
 
-    await _restore_token(hass, entry, hub)
+    # Auth token persistence
+    store = Store[dict[str, Any]](hass, 1, f"{DOMAIN}_auth_{entry.entry_id}")
+    hub.attach_store(store)
+    stored = await store.async_load()
+    if stored:
+        hub.restore_token(stored.get("token"), stored.get("expiry"))
 
     # Discover devices — gets static properties + initial capability values
     devices = await hub.async_discover_devices()
@@ -102,7 +75,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         for device_id, result in zip(list(device_states), results):
             if isinstance(result, SiriusAuthError):
                 _LOGGER.warning("Auth failed for device %s, requesting reauth", device_id)
-                _trigger_reauth(hass, entry_id)
+                hass.async_create_task(hass.config_entries.async_start_reauth(entry_id))
                 return dict(device_states)
             if isinstance(result, Exception):
                 _LOGGER.exception("getStatus failed for device %s", device_id)
@@ -114,41 +87,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         name=f"{DOMAIN} devices",
         update_method=_async_update_data,
         update_interval=timedelta(seconds=GET_STATUS_INTERVAL),
-    )
-
-    # Separate timer — poll /devices/ hourly for static property changes
-    async def _poll_devices(_now: datetime | None = None) -> None:
-        """Poll /devices/ for new devices and static property changes."""
-        try:
-            fresh = await hub.async_discover_devices()
-            new_ids: list[str] = []
-            for device in fresh:
-                did = device.get("uid", str(device["id"]))
-                if did in device_states:
-                    for k, v in device.items():
-                        if k not in LIVE_CAPABILITY_KEYS:
-                            device_states[did][k] = v
-                else:
-                    new_ids.append(did)
-
-            if new_ids:
-                _LOGGER.info(
-                    "New Sirius device(s) detected (IDs: %s), reloading entry",
-                    sorted(new_ids),
-                )
-                hass.async_create_task(
-                    hass.config_entries.async_reload(entry_id)
-                )
-        except SiriusAuthError:
-            _LOGGER.warning("Auth rejected during /devices/ poll, requesting reauth")
-            _trigger_reauth(hass, entry_id)
-        except Exception:  # noqa: BLE001
-            _LOGGER.exception("Failed to refresh devices from /devices/")
-
-    entry.async_on_unload(
-        async_track_time_interval(
-            hass, _poll_devices, timedelta(seconds=DEVICES_POLL_INTERVAL)
-        )
     )
 
     # MQTT status callback — called from paho-mqtt background thread.

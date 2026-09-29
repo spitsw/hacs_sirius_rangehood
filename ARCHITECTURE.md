@@ -171,7 +171,7 @@ if remaining > 0:
 
 ---
 
-## ADR-7: Discovery auto-reload
+## ADR-7: Discovery via MQTT unknown-UID reload
 
 **Status**: Accepted
 
@@ -179,18 +179,18 @@ if remaining > 0:
 rangehood paired, existing one unpaired). The component only discovers
 devices once, at setup time.
 
-**Decision**: Poll `/devices/` every hour (in addition to the coordinator
-heartbeat) and compare discovered device IDs. If new IDs appear, reload
-the config entry so the new entities appear. Unknown UIDs arriving over
-MQTT also trigger a reload.
+**Decision**: When an MQTT status message arrives for a UID that is not
+in the current `device_states` dict, reload the config entry so the new
+entities appear. No periodic `/devices/` poll is needed — with 1–3
+devices, discovery is rare, and MQTT is the primary channel for all
+device activity.
 
 **Consequences**:
-- New devices appear automatically within 1 hour (or instantly if they
-  publish MQTT first).
-- Config entry reload is heavyweight — all entities are torn down and
-  recreated. At 1-3 devices this is negligible.
-- No mechanism yet to handle device removal (the device would need to be
-  manually removed from HA).
+- New devices are detected within seconds (when they first publish via
+  MQTT), not up to an hour later.
+- Config entry reload is heavyweight but negligible at 1–3 devices.
+- No mechanism yet to handle device removal — a removed device must be
+  manually deleted from HA.
 
 ---
 
