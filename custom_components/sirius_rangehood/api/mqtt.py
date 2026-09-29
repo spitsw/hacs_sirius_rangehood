@@ -38,7 +38,7 @@ def _create_ssl_context() -> ssl.SSLContext:
 class SiriusMQTT:
     """Manages a MQTTS connection to the Sirius server."""
 
-    _DEFAULT_PORT = 8883
+    _DEFAULT_PORT = 8884
     _KEEPALIVE = 60
 
     def __init__(

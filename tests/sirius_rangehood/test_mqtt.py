@@ -63,10 +63,10 @@ class TestMQTTInit:
         assert mqtt._port == 8884
 
     def test_default_port(self):
-        """Should default to port 8883 when no port is specified."""
+        """Should default to port 8884 when no port is specified."""
         mqtt = SiriusMQTT("mqtts://broker.example.com", "user", "pass")
         assert mqtt._host == "broker.example.com"
-        assert mqtt._port == 8883
+        assert mqtt._port == 8884
 
     def test_parses_endpoint_without_mqtts_scheme(self):
         """Host parsing should work even without scheme prefix."""
