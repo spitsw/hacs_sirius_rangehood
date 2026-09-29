@@ -100,6 +100,7 @@ API_TIMEOUT = 10
 
 # Default server endpoint
 DEFAULT_SIRIUS_ENDPOINT = "https://sirius.iotpga.it"
+DEFAULT_SIRIUS_MQTTS_ENDPOINT = "mqtts://sirius.iotpga.it:8884"
 
 # Heartbeat interval — sends getStatus to trigger MQTT refresh (seconds)
 GET_STATUS_INTERVAL = 300
