@@ -29,7 +29,7 @@ async def async_setup_entry(
     for device in devices:
         did = device.get("uid", str(device["id"]))
         entities.append(SiriusRangehoodPowerSwitch(coordinator, did, device, entry))
-        if CAP_BI_POWER_ENABLED in device:
+        if CAP_BI_POWER_ENABLED in device.get("_limits", {}):
             entities.append(
                 SiriusRangehoodBiPowerSwitch(coordinator, did, device, entry)
             )

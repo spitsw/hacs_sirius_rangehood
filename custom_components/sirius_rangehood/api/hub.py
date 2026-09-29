@@ -170,7 +170,9 @@ class SiriusHub:
         limits: dict[str, dict[str, float]] = {}
         for cap in device.get("capabilities", []):
             uid = cap["capabilityUid"]
-            flat[uid] = cap["value"]
+            # Do NOT store flat[uid] = cap["value"] — the capabilities array
+            # carries default/placeholder values, not live device state.
+            # Live state arrives via MQTT after a getStatus command.
             limits[uid] = {
                 "min": float(cap.get("minValue", 0)),
                 "max": float(cap.get("maxValue", 100)),

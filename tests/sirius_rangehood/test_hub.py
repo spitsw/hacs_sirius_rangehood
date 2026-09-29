@@ -39,7 +39,9 @@ class TestFlattenDevice:
         assert flat["name"] == "My Rangehood"
         assert flat["property.device.fw.version"] == "1.2.3"
         assert flat["property.device.network.rssi"] == -70
-        assert flat["device.fanSpeed"] == 3
+        # Capability value is NOT stored in the flat dict — live state
+        # comes from MQTT. Only _limits captures min/max bounds.
+        assert "device.fanSpeed" not in flat
         assert "_limits" in flat
         assert flat["_limits"]["device.fanSpeed"] == {"min": 0.0, "max": 4.0}
 
