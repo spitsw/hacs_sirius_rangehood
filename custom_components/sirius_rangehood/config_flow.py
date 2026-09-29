@@ -12,7 +12,13 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import CONF_SIRIUS_ENDPOINT, CONF_SIRIUS_MQTTS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_MQTTS_ENDPOINT, DOMAIN
+from .const import (
+    CONF_SIRIUS_ENDPOINT,
+    CONF_SIRIUS_MQTTS_ENDPOINT,
+    DEFAULT_SIRIUS_ENDPOINT,
+    DEFAULT_SIRIUS_MQTTS_ENDPOINT,
+    DOMAIN,
+)
 from .hub import SiriusHub, SiriusAuthError
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,6 +33,15 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 )
 
 
+def _validate_urls(sirius_endpoint: str, mqtts_endpoint: str) -> str | None:
+    """Return an error key if URL schemes are invalid, else None."""
+    if not sirius_endpoint.startswith("https://"):
+        return "invalid_https_url"
+    if not mqtts_endpoint.startswith("mqtts://"):
+        return "invalid_mqtts_url"
+    return None
+
+
 class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Sirius Rangehood."""
 
@@ -39,9 +54,16 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            self._async_abort_entries_match(
-                {CONF_SIRIUS_ENDPOINT: user_input[CONF_SIRIUS_ENDPOINT]}
+            url_error = _validate_urls(
+                user_input[CONF_SIRIUS_ENDPOINT],
+                user_input[CONF_SIRIUS_MQTTS_ENDPOINT],
             )
+            if url_error:
+                errors["base"] = url_error
+            else:
+                self._async_abort_entries_match(
+                    {CONF_SIRIUS_ENDPOINT: user_input[CONF_SIRIUS_ENDPOINT]}
+                )
 
             session = async_get_clientsession(self.hass)
             hub = SiriusHub(
@@ -66,7 +88,7 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
                     )
             except SiriusAuthError:
                 errors["base"] = "invalid_auth"
-            except Exception as exc:  # noqa: BLE001
+            except Exception:  # noqa: BLE001
                 _LOGGER.exception("Unexpected error during config flow")
                 errors["base"] = "cannot_connect"
 
@@ -82,8 +104,15 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            session = async_get_clientsession(self.hass)
-            hub = SiriusHub(
+            url_error = _validate_urls(
+                user_input[CONF_SIRIUS_ENDPOINT],
+                user_input[CONF_SIRIUS_MQTTS_ENDPOINT],
+            )
+            if url_error:
+                errors["base"] = url_error
+            else:
+                session = async_get_clientsession(self.hass)
+                hub = SiriusHub(
                 session,
                 user_input[CONF_SIRIUS_ENDPOINT],
                 user_input[CONF_USERNAME],

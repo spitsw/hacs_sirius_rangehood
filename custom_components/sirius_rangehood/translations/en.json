@@ -23,7 +23,9 @@
     "error": {
       "invalid_auth": "Invalid username or password.",
       "cannot_connect": "Could not connect to the Sirius server.",
-      "no_devices": "No rangehood devices found."
+      "no_devices": "No rangehood devices found.",
+      "invalid_https_url": "The HTTPS endpoint must start with https://",
+      "invalid_mqtts_url": "The MQTTS endpoint must start with mqtts://"
     },
     "abort": {
       "already_configured": "This Sirius endpoint is already configured."

@@ -55,7 +55,7 @@ class SiriusHub:
             async with self._session.post(url, json=payload, timeout=API_TIMEOUT) as resp:
                 data = await resp.json()
                 if resp.status != 200 or not data.get("JWT"):
-                    _LOGGER.error("Login failed: %s", data)
+                    _LOGGER.error("Login failed (HTTP %d)", resp.status)
                     raise SiriusAuthError(f"Login failed: {data}")
                 self._token = data["JWT"]
                 self._token_expiry = datetime.now() + timedelta(
@@ -83,7 +83,7 @@ class SiriusHub:
                     self._token_expiry = None
                     raise SiriusAuthError("JWT rejected by /devices/")
                 if resp.status != 200:
-                    _LOGGER.error("Failed to discover devices: %s", data)
+                    _LOGGER.error("Failed to discover devices (HTTP %d)", resp.status)
                     return []
                 raw_devices = data if isinstance(data, list) else data.get("devices", [])
                 return [self._flatten_device(d) for d in raw_devices]
@@ -167,9 +167,9 @@ class SiriusHub:
                     self._token_expiry = None
                     raise SiriusAuthError("JWT rejected by set_value")
                 if resp.status != 200:
-                    _LOGGER.error("set_value failed for %s: %s", device_id, data)
+                    _LOGGER.error("set_value failed for device %s (HTTP %d)", device_id, resp.status)
                 else:
-                    _LOGGER.debug("set_value succeeded for %s: %s", device_id, data)
+                    _LOGGER.debug("set_value succeeded for device %s", device_id)
                 return data
         except asyncio.TimeoutError:
             _LOGGER.error("set_value timed out for %s", device_id)
