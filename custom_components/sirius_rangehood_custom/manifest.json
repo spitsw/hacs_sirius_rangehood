@@ -5,7 +5,7 @@
   "config_flow": true,
   "requirements": ["paho-mqtt==2.1.0"],
   "dependencies": [],
-  "codeowners": [],
+  "codeowners": ["@spitsw"],
   "homeassistant": "2026.3.0",
   "iot_class": "cloud_push",
   "integration_type": "device",
