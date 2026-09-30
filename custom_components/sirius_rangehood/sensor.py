@@ -68,13 +68,6 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         icon="mdi:clock-fast",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    SensorEntityDescription(
-        key=CAP_TIMER_VALUE,
-        translation_key="timer_value",
-        name="Timer Duration",
-        icon="mdi:clock-outline",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
     # -- Diagnostics from /devices/ endpoint (static / configured values) --
     SensorEntityDescription(
         key=PROP_DEVICE_REF,
