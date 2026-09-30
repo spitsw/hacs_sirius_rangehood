@@ -13,8 +13,6 @@ import paho.mqtt.client as mqtt
 
 _LOGGER = logging.getLogger(__name__)
 
-_MQTT_CONNECT_TIMEOUT = 15.0  # seconds to wait for initial connection
-
 StatusCallback = Callable[[str, dict[str, Any]], None]  # device_id, payload
 
 
@@ -64,7 +62,6 @@ class SiriusMQTT:
         self._insecure_tls = insecure_tls
         self._client: mqtt.Client | None = None
         self._subscribed_devices: set[str] = set()
-        self._connect_future: asyncio.Future[bool] | None = None
 
         parsed = urlparse(mqtts_endpoint)
         self._host = parsed.hostname or "localhost"
@@ -76,13 +73,8 @@ class SiriusMQTT:
             _LOGGER.info("MQTT connected to %s", self._host)
             for device_id in self._subscribed_devices:
                 self._subscribe_device(device_id)
-            # Resolve the startup future so async_start can return
-            if self._connect_future and not self._connect_future.done():
-                self._connect_future.set_result(True)
         else:
             _LOGGER.error("MQTT connection failed (rc=%d)", rc)
-            if self._connect_future and not self._connect_future.done():
-                self._connect_future.set_result(False)
 
     def _on_disconnect(self, _client, _userdata, rc) -> None:  # noqa: ANN001
         """Handle disconnection."""
@@ -139,31 +131,27 @@ class SiriusMQTT:
         self._client.reconnect_delay_set(min_delay=1, max_delay=120)
 
         try:
-            self._connect_future = asyncio.get_event_loop().create_future()
-            self._client.connect_async(self._host, self._port, keepalive=self._KEEPALIVE)
+            # Connect synchronously in a thread executor to avoid event-loop blocking
+            # and paho async threading issues. loop_start() is called afterwards.
+            def _connect() -> None:
+                self._client.connect(self._host, self._port, keepalive=self._KEEPALIVE)
+
+            _LOGGER.debug("Connecting to MQTT broker %s:%d (insecure=%s)...",
+                           self._host, self._port, self._insecure_tls)
+            await asyncio.get_event_loop().run_in_executor(None, _connect)
             self._client.loop_start()
-            _LOGGER.debug("Awaiting MQTT connection to %s:%d (timeout=%ds, insecure=%s)",
-                           self._host, self._port, _MQTT_CONNECT_TIMEOUT, self._insecure_tls)
-            connected = await asyncio.wait_for(
-                self._connect_future, timeout=_MQTT_CONNECT_TIMEOUT
-            )
-            if connected:
-                _LOGGER.info("MQTT connected to %s:%d", self._host, self._port)
-            else:
-                _LOGGER.error("MQTT broker %s:%d rejected the connection", self._host, self._port)
-            return connected
-        except asyncio.TimeoutError:
-            _LOGGER.error(
-                "MQTT connection to %s:%d timed out after %ds — check network/firewall "
-                "or that the hostname resolves correctly",
-                self._host, self._port, _MQTT_CONNECT_TIMEOUT,
-            )
+            # Synchronous connect() already handled CONNACK, so _on_connect won't
+            # fire again. Subscribe upfront.
+            for device_id in self._subscribed_devices:
+                self._subscribe_device(device_id)
+            _LOGGER.info("MQTT connected to %s:%d", self._host, self._port)
+            return True
+        except (OSError, ConnectionError) as err:
+            _LOGGER.error("MQTT connection to %s:%d failed: %s", self._host, self._port, err)
             return False
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("MQTT connection to %s:%d failed: %s", self._host, self._port, err)
             return False
-        finally:
-            self._connect_future = None
 
     async def async_stop(self) -> None:
         """Disconnect the MQTT client."""
