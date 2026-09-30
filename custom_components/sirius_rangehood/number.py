@@ -46,7 +46,7 @@ class SiriusRangehoodTimer(CoordinatorEntity, NumberEntity):
 
     _attr_has_entity_name = True
     _attr_translation_key = "timer_duration"
-    _attr_native_unit_of_measurement = "min"
+    _attr_native_unit_of_measurement = "s"
     _attr_mode = "auto"
 
     def __init__(
@@ -66,12 +66,8 @@ class SiriusRangehoodTimer(CoordinatorEntity, NumberEntity):
         )
 
         limits = device.get("_limits", {}).get(CAP_TIMER_VALUE, {})
-        self._attr_native_min_value = (
-            int(limits.get("min", 0)) / 60 if limits else 0
-        )
-        self._attr_native_max_value = (
-            int(limits.get("max", 6000)) / 60 if limits else 600
-        )
+        self._attr_native_min_value = limits.get("min", 0) if limits else 0
+        self._attr_native_max_value = limits.get("max", 6000) if limits else 6000
         self._attr_native_step = 1
 
     def _get_device_state(self) -> dict[str, Any]:
@@ -80,17 +76,17 @@ class SiriusRangehoodTimer(CoordinatorEntity, NumberEntity):
 
     @property
     def native_value(self) -> float | None:
-        """Return the timer duration in minutes."""
+        """Return the timer duration in seconds."""
         state = self._get_device_state()
         val = state.get(CAP_TIMER_VALUE)
         if val is not None:
-            return round(float(val) / 60, 1)
+            return float(val)
         return None
 
     async def async_set_native_value(self, value: float) -> None:
-        """Set the timer duration. Convert minutes to seconds for the API."""
+        """Set the timer duration in seconds."""
         await self._async_send_command(
-            [{"id": CAP_TIMER_VALUE, "value": int(value * 60)}]
+            [{"id": CAP_TIMER_VALUE, "value": int(value)}]
         )
 
     @property

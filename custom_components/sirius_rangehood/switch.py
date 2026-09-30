@@ -201,6 +201,12 @@ class SiriusRangehoodTimerSwitch(CoordinatorEntity, SwitchEntity):
             return bool(val)
         return None
 
+    @property
+    def available(self) -> bool:
+        """Disable the switch when the timer duration is 0."""
+        state = self._get_device_state()
+        return bool(state.get(CAP_TIMER_VALUE, 0))
+
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Start the timer."""
         await self._async_send_command([{"id": CAP_TIMER_ACTIVE, "value": 1.0}])
