@@ -9,110 +9,34 @@ from homeassistant.components.sensor import SensorEntity, SensorEntityDescriptio
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .api import (
-    CAP_BOOST_VALUE,
-    CAP_FILTER_VALUE,
-    CAP_TIMER_ACTIVE,
-    CAP_TIMER_ENABLE,
-    CAP_TIMER_VALUE,
-    PROP_DEVICE_CLASS,
-    PROP_DEVICE_REF,
-    PROP_DEVICE_TYPE,
-    PROP_FW_CODE,
-    PROP_FW_VERSION,
-    PROP_IP_ADDRESS,
-    PROP_RSSI,
-    PROP_SECURE_ID,
-    PROP_SSID,
-)
+from .api import CAP_FILTER_VALUE, CAP_TIMER_ACTIVE, CAP_TIMER_ENABLE, CAP_TIMER_VALUE
+from .api import PROP_DEVICE_CLASS, PROP_DEVICE_REF, PROP_DEVICE_TYPE, PROP_FW_CODE, PROP_FW_VERSION
+from .api import PROP_IP_ADDRESS, PROP_RSSI, PROP_SECURE_ID, PROP_SSID
 from .const import DOMAIN
+from .entity import SiriusEntity, sirius_device_info
+
 
 SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
-    # -- Diagnostics from MQTT / live data --
-    SensorEntityDescription(
-        key=PROP_IP_ADDRESS,
-        translation_key="ip_address",
-        name="IP Address",
-        icon="mdi:ip-network",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=PROP_RSSI,
-        translation_key="rssi",
-        name="RSSI",
-        icon="mdi:wifi",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=PROP_SSID,
-        translation_key="ssid",
-        name="SSID",
-        icon="mdi:wifi-settings",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=PROP_FW_VERSION,
-        translation_key="firmware_version",
-        name="Firmware Version",
-        icon="mdi:chip",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=CAP_BOOST_VALUE,
-        translation_key="boost_value",
-        name="Boost Duration",
-        icon="mdi:clock-fast",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    # -- Diagnostics from /devices/ endpoint (static / configured values) --
-    SensorEntityDescription(
-        key=PROP_DEVICE_REF,
-        translation_key="device_ref",
-        name="Device Ref",
-        icon="mdi:tag-text",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=PROP_DEVICE_TYPE,
-        translation_key="device_type",
-        name="Device Type",
-        icon="mdi:chip",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=PROP_DEVICE_CLASS,
-        translation_key="device_class",
-        name="Device Class",
-        icon="mdi:shape",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=PROP_FW_CODE,
-        translation_key="firmware_code",
-        name="Firmware Code",
-        icon="mdi:counter",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=PROP_SECURE_ID,
-        translation_key="secure_id",
-        name="Secure ID",
-        icon="mdi:shield-key",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
+    SensorEntityDescription(key=PROP_IP_ADDRESS, translation_key="ip_address", name="IP Address", icon="mdi:ip-network", entity_category=EntityCategory.DIAGNOSTIC),
+    SensorEntityDescription(key=PROP_RSSI, translation_key="rssi", name="RSSI", icon="mdi:wifi", entity_category=EntityCategory.DIAGNOSTIC),
+    SensorEntityDescription(key=PROP_SSID, translation_key="ssid", name="SSID", icon="mdi:wifi-settings", entity_category=EntityCategory.DIAGNOSTIC),
+    SensorEntityDescription(key=PROP_FW_VERSION, translation_key="firmware_version", name="Firmware Version", icon="mdi:chip", entity_category=EntityCategory.DIAGNOSTIC),
+    SensorEntityDescription(key=CAP_FILTER_VALUE, translation_key="filter_clean_countdown", name="Filter Clean Countdown", icon="mdi:air-filter"),
+    SensorEntityDescription(key=CAP_TIMER_ACTIVE, translation_key="timer_active", name="Timer Active", icon="mdi:clock-outline", entity_category=EntityCategory.DIAGNOSTIC),
+    # Static /devices/ properties
+    SensorEntityDescription(key=PROP_DEVICE_REF, translation_key="device_ref", name="Device Ref", icon="mdi:tag-text", entity_category=EntityCategory.DIAGNOSTIC),
+    SensorEntityDescription(key=PROP_DEVICE_TYPE, translation_key="device_type", name="Device Type", icon="mdi:chip", entity_category=EntityCategory.DIAGNOSTIC),
+    SensorEntityDescription(key=PROP_DEVICE_CLASS, translation_key="device_class", name="Device Class", icon="mdi:shape", entity_category=EntityCategory.DIAGNOSTIC),
+    SensorEntityDescription(key=PROP_FW_CODE, translation_key="firmware_code", name="Firmware Code", icon="mdi:counter", entity_category=EntityCategory.DIAGNOSTIC),
+    SensorEntityDescription(key=PROP_SECURE_ID, translation_key="secure_id", name="Secure ID", icon="mdi:shield-key", entity_category=EntityCategory.DIAGNOSTIC),
 )
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the sensor platform."""
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator = data["coordinator"]
     devices = data["devices"]
@@ -120,148 +44,48 @@ async def async_setup_entry(
     entities = []
     for device in devices:
         did = device.get("uid", str(device["id"]))
-        for description in SENSOR_DESCRIPTIONS:
-            entities.append(
-                SiriusRangehoodSensor(
-                    coordinator, did, device, entry, description
-                )
-            )
-
-        # Custom sensor — filter countdown in hours instead of raw seconds
-        entities.append(
-            SiriusRangehoodFilterCountdown(coordinator, did, device, entry)
-        )
-
+        for desc in SENSOR_DESCRIPTIONS:
+            entities.append(SiriusRangehoodSensor(coordinator, did, device, entry, desc))
         if CAP_TIMER_ENABLE in device.get("_limits", {}):
-            entities.append(
-                SiriusRangehoodTimerOffTime(coordinator, did, device, entry)
-            )
-
+            entities.append(SiriusRangehoodTimerOffTime(coordinator, did, device, entry))
     async_add_entities(entities)
 
 
-class SiriusRangehoodSensor(CoordinatorEntity, SensorEntity):
-    """Representation of a Sirius Rangehood diagnostic sensor."""
-
-    _attr_has_entity_name = True
+class SiriusRangehoodSensor(SiriusEntity, SensorEntity):
+    """Generic diagnostic sensor for a Sirius device."""
 
     def __init__(
-        self,
-        coordinator,
-        device_id: str,
-        device: dict[str, Any],
-        entry: ConfigEntry,
-        description: SensorEntityDescription,
+        self, coordinator, device_id: str, device: dict[str, Any], entry: ConfigEntry, description: SensorEntityDescription,
     ) -> None:
-        """Initialize the sensor."""
         super().__init__(coordinator)
         self._device_id = device_id
         self._entry_id = entry.entry_id
         self.entity_description = description
         self._attr_unique_id = f"{device_id}_{description.key}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, device_id)},
-            name=device.get("name", f"Sirius Rangehood {device_id}"),
-            manufacturer="Sirius",
-            model=device.get("description", "Rangehood"),
-            sw_version=device.get(PROP_FW_VERSION),
-        )
-
-    def _get_device_state(self) -> dict[str, Any]:
-        """Return latest device state."""
-        return self.coordinator.data.get(self._device_id, {})
+        self._attr_device_info = sirius_device_info(device_id, device)
 
     @property
     def native_value(self) -> str | int | float | None:
-        """Return the sensor value."""
-        state = self._get_device_state()
-        return state.get(self.entity_description.key)
+        return self._get_device_state().get(self.entity_description.key)
 
 
-class SiriusRangehoodFilterCountdown(CoordinatorEntity, SensorEntity):
-    """Filter clean countdown displayed in hours.
+class SiriusRangehoodTimerOffTime(SiriusEntity, SensorEntity):
+    """Turn-off time for the countdown timer (timestamp for live countdown)."""
 
-    The API returns the remaining filter life in seconds; HA shows
-    hours for readability.
-    """
-
-    _attr_has_entity_name = True
-    _attr_translation_key = "filter_clean_countdown"
-    _attr_native_unit_of_measurement = "h"
-    _attr_icon = "mdi:air-filter"
-
-    def __init__(
-        self,
-        coordinator,
-        device_id: str,
-        device: dict[str, Any],
-        entry: ConfigEntry,
-    ) -> None:
-        """Initialize the filter countdown sensor."""
-        super().__init__(coordinator)
-        self._device_id = device_id
-        self._entry_id = entry.entry_id
-        self._attr_unique_id = f"{device_id}_{CAP_FILTER_VALUE}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, device_id)},
-            name=device.get("name", f"Sirius Rangehood {device_id}"),
-            manufacturer="Sirius",
-            model=device.get("description", "Rangehood"),
-            sw_version=device.get(PROP_FW_VERSION),
-        )
-
-    def _get_device_state(self) -> dict[str, Any]:
-        """Return latest device state."""
-        return self.coordinator.data.get(self._device_id, {})
-
-    @property
-    def native_value(self) -> float | None:
-        """Return the remaining filter life in hours."""
-        state = self._get_device_state()
-        val = state.get(CAP_FILTER_VALUE)
-        if val is not None:
-            return round(float(val) / 3600, 1)
-        return None
-
-
-class SiriusRangehoodTimerOffTime(CoordinatorEntity, SensorEntity):
-    """Calculated turn-off time for the timer.
-
-    Shows the absolute time when the rangehood will auto-shutoff.
-    Dashboards render this as a live countdown automatically.
-    """
-
-    _attr_has_entity_name = True
     _attr_translation_key = "timer_off_time"
     _attr_device_class = "timestamp"
 
     def __init__(
-        self,
-        coordinator,
-        device_id: str,
-        device: dict[str, Any],
-        entry: ConfigEntry,
+        self, coordinator, device_id: str, device: dict[str, Any], entry: ConfigEntry,
     ) -> None:
-        """Initialize the turn-off time sensor."""
         super().__init__(coordinator)
         self._device_id = device_id
         self._entry_id = entry.entry_id
         self._attr_unique_id = f"{device_id}_timer_off"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, device_id)},
-            name=device.get("name", f"Sirius Rangehood {device_id}"),
-            manufacturer="Sirius",
-            model=device.get("description", "Rangehood"),
-            sw_version=device.get(PROP_FW_VERSION),
-        )
-
-    def _get_device_state(self) -> dict[str, Any]:
-        """Return latest device state."""
-        return self.coordinator.data.get(self._device_id, {})
+        self._attr_device_info = sirius_device_info(device_id, device)
 
     @property
     def native_value(self) -> datetime | None:
-        """Return the calculated turn-off time as a UTC timestamp."""
         state = self._get_device_state()
         active = state.get(CAP_TIMER_ACTIVE)
         remaining = state.get(CAP_TIMER_VALUE)
