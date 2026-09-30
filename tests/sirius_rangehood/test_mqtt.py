@@ -23,6 +23,7 @@ class TestSSLContext:
         ("errno", "preverify_ok", "expected"),
         [
             (10, False, True),   # X509_V_ERR_CERT_HAS_EXPIRED
+            (20, False, True),   # X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
             (27, False, False),  # X509_V_ERR_CERT_UNTRUSTED
             (0, True, True),     # no error
         ],
@@ -34,7 +35,7 @@ class TestSSLContext:
         ctx = ssl.create_default_context()
         # Replace the verify callback with the one from the module
         def _test_callback(conn, cert, errno, depth, preverify_ok):  # noqa: ANN001
-            if errno == 10:  # X509_V_ERR_CERT_HAS_EXPIRED
+            if errno in (10, 20):
                 return True
             return preverify_ok
 

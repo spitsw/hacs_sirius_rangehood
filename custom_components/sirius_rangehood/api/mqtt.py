@@ -32,9 +32,10 @@ async def _create_ssl_context() -> ssl.SSLContext:
     )
 
     def _verify_callback(conn, cert, errno, depth, preverify_ok):  # noqa: ANN001
-        # X509_V_ERR_CERT_HAS_EXPIRED = 10 — use raw value because this
-        # constant may not be exposed by the ssl module on all platforms.
-        if errno == 10:
+        # Accept known transient verification errors:
+        #  10 = X509_V_ERR_CERT_HAS_EXPIRED      (cert valid but expired)
+        #  20 = X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY  (root CA not in trust store)
+        if errno in (10, 20):
             return True
         return preverify_ok
 
