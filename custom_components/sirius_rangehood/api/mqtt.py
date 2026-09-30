@@ -96,14 +96,9 @@ class SiriusMQTT:
         try:
             # Build TLS context and connect — all blocking I/O, run in executor
             def _connect() -> None:
-                if self._insecure_tls:
-                    ctx = ssl.create_default_context()
-                    ctx.check_hostname = False
-                    ctx.verify_mode = ssl.CERT_NONE
-                else:
-                    ctx = ssl.create_default_context()
-                    ctx.verify_mode = ssl.CERT_OPTIONAL
-                    ctx.check_hostname = False
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
                 self._client.tls_set_context(ctx)
                 self._client.connect(self._host, self._port, keepalive=self._KEEPALIVE)
 
