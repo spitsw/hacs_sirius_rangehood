@@ -200,7 +200,6 @@ class SiriusRangehoodTimerOffTime(CoordinatorEntity, SensorEntity):
     _attr_has_entity_name = True
     _attr_translation_key = "timer_off_time"
     _attr_device_class = "timestamp"
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(
         self,
