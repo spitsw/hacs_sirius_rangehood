@@ -26,8 +26,8 @@ def sirius_device_info(device_id: str, device: dict[str, Any]) -> DeviceInfo:
 class SiriusEntity(CoordinatorEntity):
     """Base class for Sirius Rangehood entities with common helpers.
 
-    Subclasses must set ``_device_id`` and ``_entry_id`` in their
-    ``__init__``.
+    Subclasses must set ``_device_id``, ``_entry_id``, and
+    ``_attr_device_info`` in their ``__init__``.
     """
 
     _attr_has_entity_name = True
@@ -35,3 +35,8 @@ class SiriusEntity(CoordinatorEntity):
     def _get_device_state(self) -> dict[str, Any]:
         """Return latest device state from the coordinator."""
         return self.coordinator.data.get(self._device_id, {})  # type: ignore[attr-defined]
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str] | None:
+        """Return diagnostic attributes."""
+        return {"device_uid": self._device_id} if hasattr(self, "_device_id") else None  # type: ignore[attr-defined]
