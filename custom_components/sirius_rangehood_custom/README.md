@@ -1,205 +1,108 @@
 # Sirius Rangehood
 
-Home Assistant custom component for WiFi-enabled Sirius rangehoods (cappa,
-falmec, and other brands using the Sirius IoT platform).
+Home Assistant integration for WiFi-enabled Sirius rangehoods (Cappa,
+Falmec, and other brands using the Sirius IoT platform).
 
-Connects to the Sirius cloud server via:
+## Quick Start
 
-- **HTTPS REST API** — authentication, device discovery, command execution
-- **MQTTS** — real-time status updates via a persistent TLS connection
+1. **Install** — see [Installation](#installation) below, then restart HA.
+2. **Add** — go to **Settings → Devices & Services → Add Integration** and search for "Sirius Rangehood".
+3. **Log in** — enter your Sirius cloud email and password.
 
-## Features
+That's it. Your fan controls, light, timer, and sensors appear automatically.
 
-| Platform | Description |
-|----------|-------------|
-| **Fan** | 5 speeds (off / low / med / high / boost) with percentage control |
-| **Light** | Brightness (10–100%) and colour temperature (2700K–6000K) |
-| **Switch** | Global on/off for both fan and light |
-| **Sensor** | IP address, RSSI, SSID, firmware version, filter countdown, filter worn, boost/timer duration, device metadata |
+If you use custom server endpoints or need to disable TLS verification,
+choose **Configure custom endpoints** after logging in.
+
+---
+
+## What you can do
+
+| Control | What it does |
+|---------|-------------|
+| **Fan** | 5 speeds (off / low / med / high / boost) |
+| **Light** | Brightness and colour temperature (warm → cool) |
+| **Timer Duration** | Set countdown in seconds |
+| **Timer Active** | Start / stop the countdown |
+| **Boost Duration** | How long boost mode runs (in seconds) |
+| **Global Power** | Turn fan and light on/off together |
+| **Bi-Power** | Enable dual-power mode (if supported) |
+
+**Sensors** show IP address, WiFi signal strength, firmware version,
+filter life, filter worn alert, and estimated turn-off time.
+
+---
 
 ## Installation
 
-### HACS (recommended)
+### Option 1: HACS (recommended)
 
-1. Ensure [HACS](https://hacs.xyz/) is installed.
-2. Add this repository as a custom repository in HACS:
-   - **URL**: `https://github.com/yourusername/sirius_rangehood`
-   - **Category**: Integration
+1. Make sure [HACS](https://hacs.xyz/) is installed.
+2. Add this repository as a **custom repository** in HACS:
+   - URL: `https://github.com/yourusername/sirius_rangehood_custom`
+   - Category: **Integration**
 3. Search for "Sirius Rangehood" in HACS and install.
 4. Restart Home Assistant.
 
-### Manual
+### Option 2: Manual
 
-1. Copy the `custom_components/sirius_rangehood/` directory into your
-   Home Assistant `custom_components/` directory.
-2. Restart Home Assistant.
+Copy the `custom_components/sirius_rangehood_custom/` folder into your
+Home Assistant `custom_components/` directory and restart.
+
+---
 
 ## Configuration
 
-### UI (Config Flow)
+### First-time setup
 
-1. Go to **Settings → Devices & Services → Add Integration**.
-2. Search for "Sirius Rangehood".
-3. Enter:
+1. **Settings → Devices & Services → Add Integration**.
+2. Search for `Sirius Rangehood` and select it.
+3. Enter your **Sirius cloud email** and **password**.
+4. If your credentials are correct, you'll see a menu:
+   - **Finish setup** — uses the default Sirius server.
+   - **Configure custom endpoints** — only needed for custom servers or
+     to disable TLS certificate verification.
+5. Choose **Finish setup** unless you need custom settings.
 
-   | Field | Default | Description |
-   |-------|---------|-------------|
-   | Sirius HTTPS Endpoint | `https://sirius.iotpga.it` | Sirius REST API base URL |
-   | Sirius MQTTS Endpoint | `mqtts://sirius.iotpga.it:8884` | MQTT broker URL (TLS) |
-   | Email | — | Your Sirius cloud account email |
-   | Password | — | Your Sirius cloud account password |
+### Re-configuration
 
-4. Login is validated before the entry is created.
-5. Discovered devices appear as entities automatically.
+If your credentials change or you need to update endpoints:
+- Go to **Settings → Devices & Services → Sirius Rangehood → Configure**.
 
-### Re-authentication
-
-If the Sirius token expires or is rejected, a reauth flow is triggered
-automatically. You will be prompted to update credentials.
-
-## Architecture
-
-```
-┌──────────────────────────────────────────────────┐
-│                  Config Entry                     │
-├──────────┬───────────────────────────────────────┤
-│  hub.py  │ HTTP API client                       │
-│          │  • POST /users/login (JWT auth)        │
-│          │  • GET  /devices/  (device discovery)  │
-│          │  • POST /{id}/set_value (commands)     │
-│          │  • Token refresh before expiry          │
-├──────────┼───────────────────────────────────────┤
-│ mqtt.py  │ MQTTS client (direct paho-mqtt)       │
-│          │  • TLS with expired-cert tolerance     │
-│          │  • Subscribes device/status + response │
-│          │  • Parses {values: [{id, value}]}     │
-│          │  • Thread-safe bridge → HA event loop  │
-├──────────┼───────────────────────────────────────┤
-│ init.py  │ Coordinator + lifecycle                │
-│          │  • DataUpdateCoordinator (300s poll)   │
-│          │  • MQTT push updates merged via bridge │
-│          │  • /devices/ poll (3600s) for new devs │
-│          │  • Auto-reload on new device discovery │
-├──────────┼───────────────────────────────────────┤
-│ Entities │ fan.py, light.py, switch.py, sensor.py │
-│          │  • CoordinatorEntity pattern           │
-│          │  • Reauth on SiriusAuthError           │
-└──────────┴───────────────────────────────────────┘
-```
-
-### Thread Safety
-
-MQTT messages arrive on a paho background thread. All state mutations are
-bridged to the HA event loop via `hass.loop.call_soon_threadsafe()` before
-touching `coordinator.data` or calling `async_set_updated_data()`.
-
-### Fan Model
-
-- Speed 0 = off; speed 1–4 = low / medium / high / boost
-- HA percentage: 0% → off, 25/50/75/100% → low/med/high/boost
-- `async_set_percentage` nearest-matches to the closest speed
-- `speed_count = 5` (0–4) — HA's built-in speed slider
-
-### Light Model
-
-- Kelvin-based colour temperature (2700K warm → 6000K cool)
-- Brightness range 10–100% mapped to HA's 0–255 scale
-- `ColorMode.COLOR_TEMP` — no RGB support
-
-### Certificate Tolerance
-
-The Sirius MQTTS broker presents a valid certificate that has expired. The
-component creates a custom SSL context that **only** skips the expiry
-check — all other validation (chain of trust, hostname) still applies. See
-`mqtt.py:_create_ssl_context()`.
-
-## Topics
-
-MQTT subscription topics (auto-subscribed per device):
-
-```
-root/codermine/devices/{device_id}/status
-root/codermine/devices/{device_id}/response/#
-```
-
-QoS 1. Payload format:
-
-```json
-{
-  "deviceId": "...",
-  "values": [
-    {"id": "device.onOff", "value": 1.0},
-    {"id": "device.fanSpeed", "value": 3}
-  ]
-}
-```
-
-## Services
-
-No custom services are defined — use standard `fan.*`, `light.*`, and
-`switch.*` services from Home Assistant.
+---
 
 ## Troubleshooting
 
-| Symptom | Likely Cause |
+| Symptom | What to try |
 |---------|-------------|
-| "Invalid authentication" | Check credentials in Sirius mobile app first |
-| "No devices found" | Login succeeded but no rangehood is linked to the account |
-| Entity states don't update | MQTT may be disconnected; check HA logs for MQTT errors |
-| Reauth triggered | JWT expired; credentials should auto-refresh |
-| Certificate errors | If the Sirius server certificate changes, the custom TLS context in `mqtt.py` may need updating |
+| "Invalid authentication" | Check your password in the Sirius mobile app first |
+| "No devices found" | Login worked, but no rangehood is linked to your account |
+| Entities show "unknown" | Wait up to 30 seconds — the first status update arrives via MQTT |
+| Entities don't update | Check HA logs for "MQTT" errors. Network or firewall may block port 8884 |
+| Re-auth prompt | Token expired — re-enter your password when prompted |
 
-Enable debug logging:
+To enable more detailed logs:
 
 ```yaml
 logger:
-  default: warning
   logs:
-    custom_components.sirius_rangehood: debug
+    custom_components.sirius_rangehood_custom: debug
 ```
 
-## Development
+---
 
-### Requirements
+## Technical Reference
 
-- Home Assistant 2026.3.0+
-- Python 3.12+
-- `paho-mqtt>=2.1.0`
+For developers and advanced users:
 
-### Static checks
+- **Architecture decisions** — see [ARCHITECTURE.md](/ARCHITECTURE.md) for
+  ADR-1 through ADR-11 covering the design rationale.
+- **Protocol details** — MQTT topics, HTTP endpoints, capability IDs are
+  documented in [PROTOCOL.md](/PROTOCOL.md).
+- **Tests** — `pytest tests/sirius_rangehood_custom/`
+- **License** — MIT
 
-```bash
-python -m py_compile custom_components/sirius_rangehood/*.py
-```
-
-### Tests
-
-```bash
-pytest tests/
-```
-
-## License
-
-MIT
-
-## Architecture
-
-Detailed architecture and design decisions are documented in
-[ARCHITECTURE.md](/ARCHITECTURE.md) at the repository root. Key topics:
-
-- **ADR-1**: Why direct paho-mqtt instead of HA's MQTT integration
-- **ADR-2**: Thread-safe MQTT callback bridge via `call_soon_threadsafe`
-- **ADR-3**: Coordinator as single source of truth
-- **ADR-4**: HTTP for commands, MQTT for live state
-- **ADR-5**: Fan speed model (0-4) and percentage mapping
-- **ADR-6**: Proactive JWT token refresh
-- **ADR-7**: Discovery via MQTT unknown-UID reload
-- **ADR-8**: Reauth flow on authentication failure
-- **ADR-11**: No response topic subscription (acknowledgements
-  carry no state data)
-
-Protocol details (MQTT topics, HTTP endpoints, capability IDs) are
-documented in [PROTOCOL.md](/PROTOCOL.md).
+---
 
 ## Disclaimer
 
