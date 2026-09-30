@@ -39,9 +39,22 @@
         "name": "Bi-Power"
       }
     },
+    "number": {
+      "timer_duration": {
+        "name": "Timer Duration"
+      }
+    },
+    "binary_sensor": {
+      "timer_active": {
+        "name": "Timer Active"
+      }
+    },
     "sensor": {
       "filter_clean_countdown": {
         "name": "Filter Clean Countdown"
+      },
+      "timer_off_time": {
+        "name": "Turn-off Time"
       },
       "ip_address": {
         "name": "IP Address"

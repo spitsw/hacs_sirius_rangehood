@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
@@ -16,6 +17,8 @@ from .api import (
     CAP_BOOST_VALUE,
     CAP_FILTER_VALUE,
     CAP_FILTER_WORN,
+    CAP_TIMER_ACTIVE,
+    CAP_TIMER_ENABLE,
     CAP_TIMER_VALUE,
     PROP_DEVICE_CLASS,
     PROP_DEVICE_REF,
@@ -145,6 +148,11 @@ async def async_setup_entry(
                 )
             )
 
+        if CAP_TIMER_ENABLE in device.get("_limits", {}):
+            entities.append(
+                SiriusRangehoodTimerOffTime(coordinator, did, device, entry)
+            )
+
     async_add_entities(entities)
 
 
@@ -180,3 +188,46 @@ class SiriusRangehoodSensor(CoordinatorEntity, SensorEntity):
         """Return the sensor value."""
         state = self._get_device_state()
         return state.get(self.entity_description.key)
+
+
+class SiriusRangehoodTimerOffTime(CoordinatorEntity, SensorEntity):
+    """Calculated turn-off time for the timer.
+
+    Shows the absolute time when the rangehood will auto-shutoff.
+    Dashboards render this as a live countdown automatically.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "timer_off_time"
+    _attr_device_class = "timestamp"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        coordinator,
+        device_id: str,
+        device: dict[str, Any],
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the turn-off time sensor."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._entry_id = entry.entry_id
+        self._attr_unique_id = f"{device_id}_timer_off"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, device_id)},
+        )
+
+    def _get_device_state(self) -> dict[str, Any]:
+        """Return latest device state."""
+        return self.coordinator.data.get(self._device_id, {})
+
+    @property
+    def native_value(self) -> datetime | None:
+        """Return the calculated turn-off time as a UTC timestamp."""
+        state = self._get_device_state()
+        active = state.get(CAP_TIMER_ACTIVE)
+        remaining = state.get(CAP_TIMER_VALUE)
+        if active and remaining is not None:
+            return datetime.utcnow() + timedelta(seconds=float(remaining))
+        return None
