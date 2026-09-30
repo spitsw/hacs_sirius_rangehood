@@ -31,7 +31,6 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
-        vol.Optional(CONF_INSECURE_TLS, default=False): bool,
     }
 )
 
@@ -119,7 +118,10 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
         """Show menu: finish with defaults or configure endpoints."""
         return self.async_show_menu(
             step_id="setup_method",
-            menu_options=["finish", "endpoints"],
+            menu_options={
+                "finish": "Finish setup",
+                "endpoints": "Configure custom endpoints",
+            },
         )
 
     async def async_step_finish(

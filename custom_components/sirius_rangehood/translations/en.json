@@ -4,8 +4,7 @@
       "user": {
         "data": {
           "username": "Email",
-          "password": "Password",
-          "insecure_tls": "Disable TLS certificate validation"
+          "password": "Password"
         },
         "description": "Enter your Sirius rangehood cloud credentials."
       },
@@ -24,12 +23,6 @@
           "insecure_tls": "Disable TLS certificate validation"
         },
         "description": "Update your credentials for {endpoint}."
-      }
-    },
-    "menu": {
-      "setup_method": {
-        "finish": "Finish setup",
-        "endpoints": "Configure custom endpoints"
       }
     },
     "error": {
