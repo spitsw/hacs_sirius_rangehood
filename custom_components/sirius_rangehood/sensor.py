@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
@@ -229,5 +229,5 @@ class SiriusRangehoodTimerOffTime(CoordinatorEntity, SensorEntity):
         active = state.get(CAP_TIMER_ACTIVE)
         remaining = state.get(CAP_TIMER_VALUE)
         if active and remaining is not None:
-            return datetime.utcnow() + timedelta(seconds=float(remaining))
+            return datetime.now(timezone.utc) + timedelta(seconds=float(remaining))
         return None
