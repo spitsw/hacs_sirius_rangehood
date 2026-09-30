@@ -16,28 +16,6 @@ _LOGGER = logging.getLogger(__name__)
 StatusCallback = Callable[[str, dict[str, Any]], None]  # device_id, payload
 
 
-async def _create_ssl_context() -> ssl.SSLContext:
-    """Create an SSL context that tolerates known certificate issues.
-
-    The Sirius MQTT server presents a valid DigiCert-signed certificate
-    that has expired. Some HA Docker images may also lack the DigiCert
-    root CA. The context uses ``CERT_OPTIONAL`` so the TLS handshake
-    completes even when the certificate chain can't be fully verified.
-
-    ``ssl.create_default_context()`` calls ``load_default_certs()`` which
-    reads system certificate files from disk — blocking I/O that must not
-    run on the event loop.
-    """
-    context = await asyncio.get_event_loop().run_in_executor(
-        None, ssl.create_default_context
-    )
-    # Don't abort the handshake on certificate validation errors —
-    # the cert is known to be valid but expired, and the issuer root
-    # may not be in the container's trust store.
-    context.verify_mode = ssl.CERT_OPTIONAL
-    context.check_hostname = False
-
-
 class SiriusMQTT:
     """Manages a MQTTS connection to the Sirius server."""
 
@@ -127,9 +105,17 @@ class SiriusMQTT:
         self._client.reconnect_delay_set(min_delay=1, max_delay=120)
 
         try:
-            # Connect synchronously in a thread executor to avoid event-loop blocking
-            # and paho async threading issues. loop_start() is called afterwards.
+            # Build TLS context and connect — all blocking I/O, run in executor
             def _connect() -> None:
+                if self._insecure_tls:
+                    ctx = ssl.create_default_context()
+                    ctx.check_hostname = False
+                    ctx.verify_mode = ssl.CERT_NONE
+                else:
+                    ctx = ssl.create_default_context()
+                    ctx.verify_mode = ssl.CERT_OPTIONAL
+                    ctx.check_hostname = False
+                self._client.tls_set_context(ctx)
                 self._client.connect(self._host, self._port, keepalive=self._KEEPALIVE)
 
             _LOGGER.debug("Connecting to MQTT broker %s:%d (insecure=%s)...",
