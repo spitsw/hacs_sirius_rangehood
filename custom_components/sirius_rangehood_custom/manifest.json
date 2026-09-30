@@ -6,7 +6,6 @@
   "requirements": ["paho-mqtt==2.1.0"],
   "dependencies": [],
   "codeowners": ["@spitsw"],
-  "homeassistant": "2026.3.0",
   "iot_class": "cloud_push",
   "integration_type": "device",
   "documentation": "https://github.com/spitsw/hacs_sirius_rangehood",
