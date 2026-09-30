@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from custom_components.sirius_rangehood_custom.api.hub import SiriusAuthError, SiriusHub
 
 
@@ -97,5 +95,3 @@ class TestSiriusAuthError:
             raise SiriusAuthError("test")
         except SiriusAuthError:
             assert True
-        except Exception:
-            pytest.fail("SiriusAuthError should be caught by except SiriusAuthError")

@@ -45,7 +45,7 @@ class SiriusRangehoodLight(SiriusEntity, LightEntity):
     """Representation of a Sirius Rangehood light."""
 
     _attr_color_mode = ColorMode.COLOR_TEMP
-    _attr_supported_color_modes = {ColorMode.COLOR_TEMP}
+    _attr_supported_color_modes = frozenset({ColorMode.COLOR_TEMP})
     _attr_min_color_temp_kelvin = LIGHT_COLOR_TEMP_KELVIN_MIN
     _attr_max_color_temp_kelvin = LIGHT_COLOR_TEMP_KELVIN_MAX
 
