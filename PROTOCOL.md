@@ -1,5 +1,9 @@
 # Sirius Rangehood — Cloud Protocol
 
+> **Disclaimer**: This information was derived by observing and monitoring
+> the Sirius Android application and does not represent any official
+> protocol documentation.
+
 ## Overview
 
 The Sirius cloud server exposes two communication channels for controlling and
