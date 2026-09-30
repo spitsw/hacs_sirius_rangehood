@@ -72,13 +72,22 @@ class SiriusRangehoodLight(SiriusEntity, LightEntity):
         return None
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        params = [{"id": CAP_LIGHT_ONOFF, "value": 1.0}]
+        params = []
+
+        # If the light is off, include the onOff command. If already on,
+        # skip it — the Sirius API resets brightness to 100% on onOff:1.0.
+        if not self.is_on:
+            params.append({"id": CAP_LIGHT_ONOFF, "value": 1.0})
+
         if ATTR_BRIGHTNESS in kwargs:
             ha_brightness = kwargs[ATTR_BRIGHTNESS]
             pct = LIGHT_BRIGHTNESS_MIN + (ha_brightness / 255) * (LIGHT_BRIGHTNESS_MAX - LIGHT_BRIGHTNESS_MIN)
             params.append({"id": CAP_LIGHT_BRIGHTNESS, "value": round(max(LIGHT_BRIGHTNESS_MIN, min(LIGHT_BRIGHTNESS_MAX, pct)), 1)})
         if ATTR_COLOR_TEMP_KELVIN in kwargs:
             params.append({"id": CAP_LIGHT_COLOR_TEMP, "value": round(float(kwargs[ATTR_COLOR_TEMP_KELVIN]))})
+
+        if not params:
+            return
         await self._async_send_command(params)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
