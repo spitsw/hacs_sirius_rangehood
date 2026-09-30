@@ -39,6 +39,7 @@ STEP_ENDPOINTS_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_SIRIUS_ENDPOINT, default=DEFAULT_SIRIUS_ENDPOINT): str,
         vol.Required(CONF_SIRIUS_MQTTS_ENDPOINT, default=DEFAULT_SIRIUS_MQTTS_ENDPOINT): str,
+        vol.Optional(CONF_INSECURE_TLS, default=False): bool,
     }
 )
 
@@ -104,15 +105,21 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._async_abort_entries_match(
                     {CONF_USERNAME: user_input[CONF_USERNAME]}
                 )
-                return self.async_show_menu(
-                    step_id="user",
-                    menu_options=["finish", "endpoints"],
-                )
+                return await self.async_step_setup_method()
 
         return self.async_show_form(
             step_id="user",
             data_schema=STEP_USER_DATA_SCHEMA,
             errors=errors,
+        )
+
+    async def async_step_setup_method(
+        self, _: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Show menu: finish with defaults or configure endpoints."""
+        return self.async_show_menu(
+            step_id="setup_method",
+            menu_options=["finish", "endpoints"],
         )
 
     async def async_step_finish(
@@ -150,6 +157,7 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
                     **self._user_input,
                     CONF_SIRIUS_ENDPOINT: user_input[CONF_SIRIUS_ENDPOINT],
                     CONF_SIRIUS_MQTTS_ENDPOINT: user_input[CONF_SIRIUS_MQTTS_ENDPOINT],
+                    CONF_INSECURE_TLS: user_input.get(CONF_INSECURE_TLS, False),
                 }
                 return self.async_create_entry(
                     title=(

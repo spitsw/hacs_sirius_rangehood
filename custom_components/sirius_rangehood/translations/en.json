@@ -12,7 +12,8 @@
       "endpoints": {
         "data": {
           "sirius_endpoint": "Sirius HTTPS Endpoint",
-          "sirius_mqtts_endpoint": "Sirius MQTTS Endpoint"
+          "sirius_mqtts_endpoint": "Sirius MQTTS Endpoint",
+          "insecure_tls": "Disable TLS certificate validation"
         },
         "description": "Override the default server endpoints (advanced)."
       },
@@ -26,7 +27,7 @@
       }
     },
     "menu": {
-      "user": {
+      "setup_method": {
         "finish": "Finish setup",
         "endpoints": "Configure custom endpoints"
       }
