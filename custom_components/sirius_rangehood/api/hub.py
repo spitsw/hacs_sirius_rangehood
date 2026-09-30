@@ -14,7 +14,7 @@ import aiohttp
 
 from homeassistant.helpers.storage import Store
 
-from .const import API_DEVICES, API_LOGIN, API_SET_VALUE, API_TIMEOUT
+from .const import API_DEVICES, API_LOGIN, API_SET_VALUE, API_TIMEOUT, PROP_FW_VERSION
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -148,7 +148,13 @@ class SiriusHub:
                     _LOGGER.error("Failed to discover devices (HTTP %d)", resp.status)
                     return []
                 raw_devices = data if isinstance(data, list) else data.get("devices", [])
-                return [self._flatten_device(d) for d in raw_devices]
+                result = [self._flatten_device(d) for d in raw_devices]
+                _LOGGER.debug("Discovered %d device(s)", len(result))
+                for d in result:
+                    _LOGGER.debug("  %s: name=%r, model=%r, fw=%r",
+                                   d.get("uid"), d.get("name"),
+                                   d.get("description"), d.get(PROP_FW_VERSION))
+                return result
         except SiriusAuthError:
             raise
         except (asyncio.TimeoutError, aiohttp.ClientError):
@@ -183,6 +189,8 @@ class SiriusHub:
         device_name = flat.get("property.device_name")
         if device_name:
             flat["name"] = device_name
+
+        return flat
 
         return flat
 
