@@ -207,3 +207,9 @@ This integration is a custom component and is not affiliated with,
 endorsed by, or supported by Sirius, P.G.A. S.R.L., or any of its
 affiliates. All product names, logos, and brands are property of
 their respective owners.
+
+## Tested Devices
+
+| Model | Status |
+|-------|--------|
+| SL926 DL 850 T-SHAPE ARISIT | Confirmed working |
