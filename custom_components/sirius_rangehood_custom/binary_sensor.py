@@ -15,7 +15,9 @@ from .entity import SiriusEntity, sirius_device_info
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback,
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator = data["coordinator"]
@@ -34,7 +36,11 @@ class SiriusRangehoodFilterWorn(SiriusEntity, BinarySensorEntity):
     _attr_translation_key = "filter_worn"
 
     def __init__(
-        self, coordinator, device_id: str, device: dict[str, Any], entry: ConfigEntry,
+        self,
+        coordinator,
+        device_id: str,
+        device: dict[str, Any],
+        entry: ConfigEntry,
     ) -> None:
         super().__init__(coordinator)
         self._device_id = device_id

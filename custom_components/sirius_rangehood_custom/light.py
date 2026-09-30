@@ -28,7 +28,9 @@ from .entity import SiriusEntity, sirius_device_info
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback,
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator = data["coordinator"]
@@ -50,7 +52,11 @@ class SiriusRangehoodLight(SiriusEntity, LightEntity):
     _attr_max_color_temp_kelvin = LIGHT_COLOR_TEMP_KELVIN_MAX
 
     def __init__(
-        self, coordinator, device_id: str, device: dict[str, Any], entry: ConfigEntry,
+        self,
+        coordinator,
+        device_id: str,
+        device: dict[str, Any],
+        entry: ConfigEntry,
     ) -> None:
         super().__init__(coordinator)
         self._device_id = device_id
@@ -71,7 +77,9 @@ class SiriusRangehoodLight(SiriusEntity, LightEntity):
         if val is not None:
             pct = float(val)
             pct = max(LIGHT_BRIGHTNESS_MIN, min(LIGHT_BRIGHTNESS_MAX, pct))
-            normalized = (pct - LIGHT_BRIGHTNESS_MIN) / (LIGHT_BRIGHTNESS_MAX - LIGHT_BRIGHTNESS_MIN)
+            normalized = (pct - LIGHT_BRIGHTNESS_MIN) / (
+                LIGHT_BRIGHTNESS_MAX - LIGHT_BRIGHTNESS_MIN
+            )
             return round(normalized * 255)
         return None
 
@@ -90,11 +98,25 @@ class SiriusRangehoodLight(SiriusEntity, LightEntity):
         if ATTR_BRIGHTNESS in kwargs:
             has_attr = True
             ha_brightness = kwargs[ATTR_BRIGHTNESS]
-            pct = LIGHT_BRIGHTNESS_MIN + (ha_brightness / 255) * (LIGHT_BRIGHTNESS_MAX - LIGHT_BRIGHTNESS_MIN)
-            params.append({"id": CAP_LIGHT_BRIGHTNESS, "value": round(max(LIGHT_BRIGHTNESS_MIN, min(LIGHT_BRIGHTNESS_MAX, pct)), 1)})
+            pct = LIGHT_BRIGHTNESS_MIN + (ha_brightness / 255) * (
+                LIGHT_BRIGHTNESS_MAX - LIGHT_BRIGHTNESS_MIN
+            )
+            params.append(
+                {
+                    "id": CAP_LIGHT_BRIGHTNESS,
+                    "value": round(
+                        max(LIGHT_BRIGHTNESS_MIN, min(LIGHT_BRIGHTNESS_MAX, pct)), 1
+                    ),
+                }
+            )
         if ATTR_COLOR_TEMP_KELVIN in kwargs:
             has_attr = True
-            params.append({"id": CAP_LIGHT_COLOR_TEMP, "value": round(float(kwargs[ATTR_COLOR_TEMP_KELVIN]))})
+            params.append(
+                {
+                    "id": CAP_LIGHT_COLOR_TEMP,
+                    "value": round(float(kwargs[ATTR_COLOR_TEMP_KELVIN])),
+                }
+            )
 
         # Only send onOff when no brightness/color_temp is provided
         if not has_attr:

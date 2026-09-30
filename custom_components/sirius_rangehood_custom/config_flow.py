@@ -30,7 +30,9 @@ _LOGGER = logging.getLogger(__name__)
 STEP_ENDPOINTS_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_SIRIUS_ENDPOINT, default=DEFAULT_SIRIUS_ENDPOINT): str,
-        vol.Required(CONF_SIRIUS_MQTTS_ENDPOINT, default=DEFAULT_SIRIUS_MQTTS_ENDPOINT): str,
+        vol.Required(
+            CONF_SIRIUS_MQTTS_ENDPOINT, default=DEFAULT_SIRIUS_MQTTS_ENDPOINT
+        ): str,
         vol.Optional(CONF_INSECURE_TLS, default=False): bool,
     }
 )
@@ -100,7 +102,9 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
 
         schema = vol.Schema(
             {
-                vol.Required(CONF_USERNAME, default=prefill.get(CONF_USERNAME, "")): str,
+                vol.Required(
+                    CONF_USERNAME, default=prefill.get(CONF_USERNAME, "")
+                ): str,
                 vol.Required(CONF_PASSWORD): str,
             }
         )
@@ -113,10 +117,14 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
                     if self.source == "reconfigure"
                     else self._get_reauth_entry()
                 )
-                sirius_endpoint = entry.data.get(CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT)
+                sirius_endpoint = entry.data.get(
+                    CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT
+                )
 
             devices = await _try_discover_devices(
-                self.hass, user_input, errors,
+                self.hass,
+                user_input,
+                errors,
                 sirius_endpoint=sirius_endpoint,
             )
             if devices is not None:
@@ -134,7 +142,9 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_reauth(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_reauth(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         """Re-authenticate with new credentials after a token rejection."""
         return await self.async_step_user(user_input)
 
@@ -144,22 +154,20 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
         """Reconfigure an existing entry."""
         return await self.async_step_user(user_input)
 
-    async def async_step_menu(
-        self, _: dict[str, Any] | None = None
-    ) -> FlowResult:
+    async def async_step_menu(self, _: dict[str, Any] | None = None) -> FlowResult:
         """Show menu: finish with defaults or configure endpoints."""
         is_reconf = self.source == "reconfigure"
         return self.async_show_menu(
             step_id="menu",
             menu_options={
                 "finish": "Keep current endpoints" if is_reconf else "Finish setup",
-                "endpoints": "Change endpoints" if is_reconf else "Configure custom endpoints",
+                "endpoints": "Change endpoints"
+                if is_reconf
+                else "Configure custom endpoints",
             },
         )
 
-    async def async_step_finish(
-        self, _: dict[str, Any] | None = None
-    ) -> FlowResult:
+    async def async_step_finish(self, _: dict[str, Any] | None = None) -> FlowResult:
         """Create or update the config entry with current settings."""
         data = {
             **self._user_input,
@@ -167,7 +175,9 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._user_input.get(CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT)
             ),
             CONF_SIRIUS_MQTTS_ENDPOINT: (
-                self._user_input.get(CONF_SIRIUS_MQTTS_ENDPOINT, DEFAULT_SIRIUS_MQTTS_ENDPOINT)
+                self._user_input.get(
+                    CONF_SIRIUS_MQTTS_ENDPOINT, DEFAULT_SIRIUS_MQTTS_ENDPOINT
+                )
             ),
             CONF_INSECURE_TLS: self._user_input.get(CONF_INSECURE_TLS, False),
         }

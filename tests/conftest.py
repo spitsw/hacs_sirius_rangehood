@@ -52,12 +52,13 @@ for path in (
 ):
     _mock_ha_module(path)
 
+
 class _MockSensorEntity:
     """Stand-in for SensorEntity — works as a real base class."""
 
+
 class _MockSwitchEntity:
     """Stand-in for SwitchEntity — works as a real base class."""
-
 
 
 # --- Populate module attributes with the symbols that the component uses ---
@@ -73,14 +74,18 @@ ha_const.Platform.LIGHT = "light"
 ha_const.Platform.SWITCH = "switch"
 ha_const.Platform.SENSOR = "sensor"
 
+
 class _MockCoordinatorEntity:
     """Stand-in for CoordinatorEntity — works as a real base class."""
+
     def __init__(self, coordinator=None):
         self.coordinator = coordinator
         self.hass = MagicMock()
 
+
 class _MockFanEntity:
     """Stand-in for FanEntity — works as a real base class."""
+
 
 ha_coord = sys.modules["homeassistant.helpers.update_coordinator"]
 ha_coord.DataUpdateCoordinator = MagicMock
@@ -89,8 +94,10 @@ ha_coord.CoordinatorEntity = _MockCoordinatorEntity
 ha_storage = sys.modules["homeassistant.helpers.storage"]
 ha_storage.Store = MagicMock
 
+
 class _MockLightEntity:
     """Stand-in for LightEntity — works as a real base class."""
+
 
 ha_light = sys.modules["homeassistant.components.light"]
 ha_light.ATTR_COLOR_TEMP_KELVIN = "color_temp_kelvin"

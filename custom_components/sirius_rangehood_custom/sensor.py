@@ -30,21 +30,83 @@ from .const import DOMAIN
 from .entity import SiriusEntity, sirius_device_info
 
 SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
-    SensorEntityDescription(key=PROP_IP_ADDRESS, translation_key="ip_address", name="IP Address", icon="mdi:ip-network", entity_category=EntityCategory.DIAGNOSTIC),
-    SensorEntityDescription(key=PROP_RSSI, translation_key="rssi", name="RSSI", icon="mdi:wifi", entity_category=EntityCategory.DIAGNOSTIC),
-    SensorEntityDescription(key=PROP_SSID, translation_key="ssid", name="SSID", icon="mdi:wifi-settings", entity_category=EntityCategory.DIAGNOSTIC),
-    SensorEntityDescription(key=PROP_FW_VERSION, translation_key="firmware_version", name="Firmware Version", icon="mdi:chip", entity_category=EntityCategory.DIAGNOSTIC),
-    SensorEntityDescription(key=CAP_TIMER_ACTIVE, translation_key="timer_active", name="Timer Active", icon="mdi:clock-outline", entity_category=EntityCategory.DIAGNOSTIC),
-    SensorEntityDescription(key=PROP_DEVICE_REF, translation_key="device_ref", name="Device Ref", icon="mdi:tag-text", entity_category=EntityCategory.DIAGNOSTIC),
-    SensorEntityDescription(key=PROP_DEVICE_TYPE, translation_key="device_type", name="Device Type", icon="mdi:chip", entity_category=EntityCategory.DIAGNOSTIC),
-    SensorEntityDescription(key=PROP_DEVICE_CLASS, translation_key="device_class", name="Device Class", icon="mdi:shape", entity_category=EntityCategory.DIAGNOSTIC),
-    SensorEntityDescription(key=PROP_FW_CODE, translation_key="firmware_code", name="Firmware Code", icon="mdi:counter", entity_category=EntityCategory.DIAGNOSTIC),
-    SensorEntityDescription(key=PROP_SECURE_ID, translation_key="secure_id", name="Secure ID", icon="mdi:shield-key", entity_category=EntityCategory.DIAGNOSTIC),
+    SensorEntityDescription(
+        key=PROP_IP_ADDRESS,
+        translation_key="ip_address",
+        name="IP Address",
+        icon="mdi:ip-network",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
+        key=PROP_RSSI,
+        translation_key="rssi",
+        name="RSSI",
+        icon="mdi:wifi",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
+        key=PROP_SSID,
+        translation_key="ssid",
+        name="SSID",
+        icon="mdi:wifi-settings",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
+        key=PROP_FW_VERSION,
+        translation_key="firmware_version",
+        name="Firmware Version",
+        icon="mdi:chip",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
+        key=CAP_TIMER_ACTIVE,
+        translation_key="timer_active",
+        name="Timer Active",
+        icon="mdi:clock-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
+        key=PROP_DEVICE_REF,
+        translation_key="device_ref",
+        name="Device Ref",
+        icon="mdi:tag-text",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
+        key=PROP_DEVICE_TYPE,
+        translation_key="device_type",
+        name="Device Type",
+        icon="mdi:chip",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
+        key=PROP_DEVICE_CLASS,
+        translation_key="device_class",
+        name="Device Class",
+        icon="mdi:shape",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
+        key=PROP_FW_CODE,
+        translation_key="firmware_code",
+        name="Firmware Code",
+        icon="mdi:counter",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    SensorEntityDescription(
+        key=PROP_SECURE_ID,
+        translation_key="secure_id",
+        name="Secure ID",
+        icon="mdi:shield-key",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
 )
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback,
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator = data["coordinator"]
@@ -54,10 +116,14 @@ async def async_setup_entry(
     for device in devices:
         did = device.get("uid", str(device["id"]))
         for desc in SENSOR_DESCRIPTIONS:
-            entities.append(SiriusRangehoodSensor(coordinator, did, device, entry, desc))
+            entities.append(
+                SiriusRangehoodSensor(coordinator, did, device, entry, desc)
+            )
         entities.append(SiriusRangehoodFilterCountdown(coordinator, did, device, entry))
         if CAP_TIMER_ENABLE in device.get("_limits", {}):
-            entities.append(SiriusRangehoodTimerOffTime(coordinator, did, device, entry))
+            entities.append(
+                SiriusRangehoodTimerOffTime(coordinator, did, device, entry)
+            )
     async_add_entities(entities)
 
 
@@ -65,7 +131,12 @@ class SiriusRangehoodSensor(SiriusEntity, SensorEntity):
     """Generic diagnostic sensor for a Sirius device."""
 
     def __init__(
-        self, coordinator, device_id: str, device: dict[str, Any], entry: ConfigEntry, description: SensorEntityDescription,
+        self,
+        coordinator,
+        device_id: str,
+        device: dict[str, Any],
+        entry: ConfigEntry,
+        description: SensorEntityDescription,
     ) -> None:
         super().__init__(coordinator)
         self._device_id = device_id
@@ -87,7 +158,11 @@ class SiriusRangehoodFilterCountdown(SiriusEntity, SensorEntity):
     _attr_icon = "mdi:air-filter"
 
     def __init__(
-        self, coordinator, device_id: str, device: dict[str, Any], entry: ConfigEntry,
+        self,
+        coordinator,
+        device_id: str,
+        device: dict[str, Any],
+        entry: ConfigEntry,
     ) -> None:
         super().__init__(coordinator)
         self._device_id = device_id
@@ -111,7 +186,11 @@ class SiriusRangehoodTimerOffTime(SiriusEntity, SensorEntity):
     _attr_device_class = "timestamp"
 
     def __init__(
-        self, coordinator, device_id: str, device: dict[str, Any], entry: ConfigEntry,
+        self,
+        coordinator,
+        device_id: str,
+        device: dict[str, Any],
+        entry: ConfigEntry,
     ) -> None:
         super().__init__(coordinator)
         self._device_id = device_id

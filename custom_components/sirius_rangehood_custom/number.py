@@ -19,7 +19,9 @@ from .entity import SiriusEntity, sirius_device_info
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback,
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator = data["coordinator"]
@@ -40,7 +42,11 @@ class SiriusRangehoodTimer(SiriusEntity, NumberEntity):
     _attr_mode = "auto"
 
     def __init__(
-        self, coordinator, device_id: str, device: dict[str, Any], entry: ConfigEntry,
+        self,
+        coordinator,
+        device_id: str,
+        device: dict[str, Any],
+        entry: ConfigEntry,
     ) -> None:
         super().__init__(coordinator)
         self._device_id = device_id
@@ -67,4 +73,6 @@ class SiriusRangehoodTimer(SiriusEntity, NumberEntity):
     @property
     def available(self) -> bool:
         state = self._get_device_state()
-        return bool(state.get(CAP_TIMER_MODIFIABLE, False)) and not bool(state.get(CAP_TIMER_ACTIVE, False))
+        return bool(state.get(CAP_TIMER_MODIFIABLE, False)) and not bool(
+            state.get(CAP_TIMER_ACTIVE, False)
+        )

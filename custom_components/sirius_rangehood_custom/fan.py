@@ -43,12 +43,18 @@ class SiriusRangehoodFan(SiriusEntity, FanEntity):
     """Representation of a Sirius Rangehood fan (speeds 0-4)."""
 
     _attr_supported_features = (
-        FanEntityFeature.SET_SPEED | FanEntityFeature.TURN_ON | FanEntityFeature.TURN_OFF
+        FanEntityFeature.SET_SPEED
+        | FanEntityFeature.TURN_ON
+        | FanEntityFeature.TURN_OFF
     )
     _attr_speed_count = FAN_SPEED_COUNT
 
     def __init__(
-        self, coordinator, device_id: str, device: dict[str, Any], entry: ConfigEntry,
+        self,
+        coordinator,
+        device_id: str,
+        device: dict[str, Any],
+        entry: ConfigEntry,
     ) -> None:
         super().__init__(coordinator)
         self._device_id = device_id
@@ -71,10 +77,17 @@ class SiriusRangehoodFan(SiriusEntity, FanEntity):
         return None
 
     async def async_set_percentage(self, percentage: int) -> None:
-        speed = min(PERCENTAGE_TO_SPEED.items(), key=lambda x: abs(x[0] - percentage))[1]
+        speed = min(PERCENTAGE_TO_SPEED.items(), key=lambda x: abs(x[0] - percentage))[
+            1
+        ]
         await self._async_send_command(CAP_FAN_SPEED, speed)
 
-    async def async_turn_on(self, percentage: int | None = None, preset_mode: str | None = None, **kwargs: Any) -> None:
+    async def async_turn_on(
+        self,
+        percentage: int | None = None,
+        preset_mode: str | None = None,
+        **kwargs: Any,
+    ) -> None:
         if percentage is not None:
             await self.async_set_percentage(percentage)
         else:
@@ -87,6 +100,8 @@ class SiriusRangehoodFan(SiriusEntity, FanEntity):
         data = self.hass.data[DOMAIN][self._entry_id]
         hub = data["hub"]
         try:
-            await hub.async_send_command(self._device_id, [{"id": capability_id, "value": value}])
+            await hub.async_send_command(
+                self._device_id, [{"id": capability_id, "value": value}]
+            )
         except SiriusAuthError:
             data.get("reauth", lambda: None)()

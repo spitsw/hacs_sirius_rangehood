@@ -43,7 +43,13 @@ class TestFanSpeedMapping:
 
     def test_bijection(self):
         """Verify speed→percentage→speed round-trips cleanly for all speeds."""
-        for speed in (FAN_SPEED_OFF, FAN_SPEED_LOW, FAN_SPEED_MEDIUM, FAN_SPEED_HIGH, FAN_SPEED_BOOST):
+        for speed in (
+            FAN_SPEED_OFF,
+            FAN_SPEED_LOW,
+            FAN_SPEED_MEDIUM,
+            FAN_SPEED_HIGH,
+            FAN_SPEED_BOOST,
+        ):
             pct = SPEED_TO_PERCENTAGE[speed]
             assert PERCENTAGE_TO_SPEED[pct] == speed
 

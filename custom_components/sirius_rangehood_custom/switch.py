@@ -21,7 +21,9 @@ from .entity import SiriusEntity, sirius_device_info
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback,
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator = data["coordinator"]
@@ -32,7 +34,9 @@ async def async_setup_entry(
         did = device.get("uid", str(device["id"]))
         entities.append(SiriusRangehoodPowerSwitch(coordinator, did, device, entry))
         if CAP_BI_POWER_ENABLED in device.get("_limits", {}):
-            entities.append(SiriusRangehoodBiPowerSwitch(coordinator, did, device, entry))
+            entities.append(
+                SiriusRangehoodBiPowerSwitch(coordinator, did, device, entry)
+            )
         if CAP_TIMER_ENABLE in device.get("_limits", {}):
             entities.append(SiriusRangehoodTimerSwitch(coordinator, did, device, entry))
     async_add_entities(entities)
@@ -42,7 +46,11 @@ class SiriusRangehoodPowerSwitch(SiriusEntity, SwitchEntity):
     """Global power on/off for a Sirius device."""
 
     def __init__(
-        self, coordinator, device_id: str, device: dict[str, Any], entry: ConfigEntry,
+        self,
+        coordinator,
+        device_id: str,
+        device: dict[str, Any],
+        entry: ConfigEntry,
     ) -> None:
         super().__init__(coordinator)
         self._device_id = device_id
@@ -76,7 +84,11 @@ class SiriusRangehoodBiPowerSwitch(SiriusEntity, SwitchEntity):
     _attr_translation_key = "bi_power"
 
     def __init__(
-        self, coordinator, device_id: str, device: dict[str, Any], entry: ConfigEntry,
+        self,
+        coordinator,
+        device_id: str,
+        device: dict[str, Any],
+        entry: ConfigEntry,
     ) -> None:
         super().__init__(coordinator)
         self._device_id = device_id
@@ -109,7 +121,11 @@ class SiriusRangehoodTimerSwitch(SiriusEntity, SwitchEntity):
     _attr_translation_key = "timer_active"
 
     def __init__(
-        self, coordinator, device_id: str, device: dict[str, Any], entry: ConfigEntry,
+        self,
+        coordinator,
+        device_id: str,
+        device: dict[str, Any],
+        entry: ConfigEntry,
     ) -> None:
         super().__init__(coordinator)
         self._device_id = device_id
@@ -128,7 +144,9 @@ class SiriusRangehoodTimerSwitch(SiriusEntity, SwitchEntity):
     @property
     def available(self) -> bool:
         state = self._get_device_state()
-        return bool(state.get(CAP_TIMER_ENABLE, False)) and bool(state.get(CAP_TIMER_VALUE, 0))
+        return bool(state.get(CAP_TIMER_ENABLE, False)) and bool(
+            state.get(CAP_TIMER_VALUE, 0)
+        )
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self._async_send_command([{"id": CAP_TIMER_ACTIVE, "value": 1.0}])

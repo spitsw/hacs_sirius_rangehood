@@ -46,7 +46,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     insecure_tls = entry.data.get(CONF_INSECURE_TLS, False)
 
     session = async_get_clientsession(hass)
-    hub = SiriusHub(session, sirius_endpoint, username, password, insecure_tls=insecure_tls)
+    hub = SiriusHub(
+        session, sirius_endpoint, username, password, insecure_tls=insecure_tls
+    )
 
     # Auth token persistence
     store = Store[dict[str, Any]](hass, 1, f"{DOMAIN}_auth_{entry.entry_id}")
@@ -79,7 +81,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         for device_id, result in zip(list(device_states), results):
             if isinstance(result, SiriusAuthError):
-                _LOGGER.warning("Auth failed for device %s, requesting reauth", device_id)
+                _LOGGER.warning(
+                    "Auth failed for device %s, requesting reauth", device_id
+                )
                 hass.async_create_task(hass.config_entries.async_start_reauth(entry_id))
                 return dict(device_states)
             if isinstance(result, Exception):
@@ -99,9 +103,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # reads/writes from both the paho thread and the coordinator.
     def _on_mqtt_status(device_id: str, payload: dict[str, Any]) -> None:
         """Forward MQTT update to the HA event loop for thread-safe processing."""
-        hass.loop.call_soon_threadsafe(
-            _apply_mqtt_update, device_id, payload
-        )
+        hass.loop.call_soon_threadsafe(_apply_mqtt_update, device_id, payload)
 
     def _apply_mqtt_update(device_id: str, payload: dict[str, Any]) -> None:
         """Match device, update state, and notify coordinator (HA event loop only)."""
@@ -111,12 +113,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             coordinator.async_set_updated_data(dict(device_states))
         else:
             _LOGGER.debug("MQTT status for unknown uid %s, reloading", device_id)
-            hass.async_create_task(
-                hass.config_entries.async_reload(entry_id)
-            )
+            hass.async_create_task(hass.config_entries.async_reload(entry_id))
 
     # Start MQTT
-    mqtt = SiriusMQTT(mqtts_endpoint, username, password, _on_mqtt_status, insecure_tls=insecure_tls)
+    mqtt = SiriusMQTT(
+        mqtts_endpoint, username, password, _on_mqtt_status, insecure_tls=insecure_tls
+    )
     mqtt_connected = await mqtt.async_start()
     if mqtt_connected:
         for device in devices:
@@ -145,11 +147,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception:
             _LOGGER.exception("Failed to refresh auth token")
         if hub._token_expiry:
-            remaining = (hub._token_expiry - datetime.now(timezone.utc)).total_seconds() - 60
+            remaining = (
+                hub._token_expiry - datetime.now(timezone.utc)
+            ).total_seconds() - 60
             if remaining > 0:
-                entry.async_on_unload(
-                    async_call_later(hass, remaining, _refresh_token)
-                )
+                entry.async_on_unload(async_call_later(hass, remaining, _refresh_token))
 
     await _refresh_token()
 

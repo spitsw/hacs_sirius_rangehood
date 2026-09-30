@@ -73,7 +73,9 @@ class SiriusMQTT:
         try:
             device_id = parts[parts.index("devices") + 1]
         except (ValueError, IndexError):
-            _LOGGER.debug("MQTT message on %s: could not extract device ID from topic", topic)
+            _LOGGER.debug(
+                "MQTT message on %s: could not extract device ID from topic", topic
+            )
             return
 
         flat: dict[str, object] = {}
@@ -103,8 +105,12 @@ class SiriusMQTT:
                 self._client.tls_set_context(ctx)
                 self._client.connect(self._host, self._port, keepalive=self._KEEPALIVE)
 
-            _LOGGER.debug("Connecting to MQTT broker %s:%d (insecure=%s)...",
-                           self._host, self._port, self._insecure_tls)
+            _LOGGER.debug(
+                "Connecting to MQTT broker %s:%d (insecure=%s)...",
+                self._host,
+                self._port,
+                self._insecure_tls,
+            )
             await asyncio.get_event_loop().run_in_executor(None, _connect)
             self._client.loop_start()
             # Synchronous connect() already handled CONNACK, so _on_connect won't
@@ -114,10 +120,14 @@ class SiriusMQTT:
             _LOGGER.info("MQTT connected to %s:%d", self._host, self._port)
             return True
         except (OSError, ConnectionError) as err:
-            _LOGGER.error("MQTT connection to %s:%d failed: %s", self._host, self._port, err)
+            _LOGGER.error(
+                "MQTT connection to %s:%d failed: %s", self._host, self._port, err
+            )
             return False
         except Exception as err:  # noqa: BLE001
-            _LOGGER.error("MQTT connection to %s:%d failed: %s", self._host, self._port, err)
+            _LOGGER.error(
+                "MQTT connection to %s:%d failed: %s", self._host, self._port, err
+            )
             return False
 
     async def async_stop(self) -> None:

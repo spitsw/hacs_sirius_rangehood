@@ -65,9 +65,11 @@ class TestMQTTOnMessage:
     def test_parses_valid_payload(self, mqtt_client):
         """_on_message should parse JSON and extract device ID from topic."""
         client, callback = mqtt_client
-        payload = json.dumps({
-            "values": [{"id": "device.fanSpeed", "value": 3}],
-        }).encode("utf-8")
+        payload = json.dumps(
+            {
+                "values": [{"id": "device.fanSpeed", "value": 3}],
+            }
+        ).encode("utf-8")
 
         msg = MagicMock()
         msg.topic = "root/codermine/devices/device-1/status"
@@ -80,13 +82,15 @@ class TestMQTTOnMessage:
     def test_multiple_values(self, mqtt_client):
         """_on_message should flatten multiple values."""
         client, callback = mqtt_client
-        payload = json.dumps({
-            "values": [
-                {"id": "device.onOff", "value": 1.0},
-                {"id": "device.fanSpeed", "value": 2},
-                {"id": "device.lightOnOff", "value": 1.0},
-            ],
-        }).encode("utf-8")
+        payload = json.dumps(
+            {
+                "values": [
+                    {"id": "device.onOff", "value": 1.0},
+                    {"id": "device.fanSpeed", "value": 2},
+                    {"id": "device.lightOnOff", "value": 1.0},
+                ],
+            }
+        ).encode("utf-8")
 
         msg = MagicMock()
         msg.topic = "root/codermine/devices/device-1/status"
@@ -102,13 +106,15 @@ class TestMQTTOnMessage:
     def test_skips_non_dict_items(self, mqtt_client):
         """_on_message should skip values entries that are not dicts or lack 'id'."""
         client, callback = mqtt_client
-        payload = json.dumps({
-            "values": [
-                {"id": "device.onOff", "value": 1.0},
-                "not-a-dict",
-                {"notId": "device.fanSpeed", "value": 3},
-            ],
-        }).encode("utf-8")
+        payload = json.dumps(
+            {
+                "values": [
+                    {"id": "device.onOff", "value": 1.0},
+                    "not-a-dict",
+                    {"notId": "device.fanSpeed", "value": 3},
+                ],
+            }
+        ).encode("utf-8")
 
         msg = MagicMock()
         msg.topic = "root/codermine/devices/device-1/status"

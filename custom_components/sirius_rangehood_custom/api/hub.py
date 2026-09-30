@@ -37,6 +37,7 @@ def _auth_headers(token: str) -> dict[str, str]:
         "User-Agent": _USER_AGENT,
     }
 
+
 _T = TypeVar("_T")
 
 
@@ -56,9 +57,11 @@ async def _run_with_retry(
             return await coro_factory()
         except (asyncio.TimeoutError, aiohttp.ClientError) as exc:
             last_exc = exc
-            _LOGGER.debug("HTTP request failed (attempt %d/%d): %s", attempt + 1, retries, exc)
+            _LOGGER.debug(
+                "HTTP request failed (attempt %d/%d): %s", attempt + 1, retries, exc
+            )
             if attempt < retries - 1:
-                await asyncio.sleep(_RETRY_BASE_DELAY * (2 ** attempt))
+                await asyncio.sleep(_RETRY_BASE_DELAY * (2**attempt))
     raise last_exc  # type: ignore[misc]
 
 
@@ -92,7 +95,11 @@ class SiriusHub:
     async def async_ensure_token(self, retry: bool = True) -> str:
         """Return a valid token, refreshing or logging in if needed."""
         async with self._lock:
-            if self._token and self._token_expiry and self._token_expiry > datetime.now(timezone.utc):
+            if (
+                self._token
+                and self._token_expiry
+                and self._token_expiry > datetime.now(timezone.utc)
+            ):
                 return self._token
             return await self._async_login(retry=retry)
 
@@ -118,7 +125,12 @@ class SiriusHub:
         }
         try:
             async with await _run_with_retry(
-                lambda: self._session.post(url, json=payload, headers={"User-Agent": _USER_AGENT}, timeout=API_TIMEOUT),
+                lambda: self._session.post(
+                    url,
+                    json=payload,
+                    headers={"User-Agent": _USER_AGENT},
+                    timeout=API_TIMEOUT,
+                ),
                 retries=_MAX_RETRIES if retry else 1,
             ) as resp:
                 data = await resp.json()
@@ -133,7 +145,10 @@ class SiriusHub:
                     await self._store.async_save(
                         {"token": self._token, "expiry": self._token_expiry.isoformat()}
                     )
-                _LOGGER.info("Sirius auth token refreshed, expires at %s", self._token_expiry.isoformat())
+                _LOGGER.info(
+                    "Sirius auth token refreshed, expires at %s",
+                    self._token_expiry.isoformat(),
+                )
                 return self._token
         except SiriusAuthError:
             raise  # never retry a credential rejection
@@ -152,8 +167,8 @@ class SiriusHub:
         headers = _auth_headers(token)
         http_call = lambda: self._session.get(url, headers=headers, timeout=API_TIMEOUT)
         try:
-            async with (
-                await _run_with_retry(http_call, retries=_MAX_RETRIES if retry else 1)
+            async with await _run_with_retry(
+                http_call, retries=_MAX_RETRIES if retry else 1
             ) as resp:
                 data = await resp.json()
                 if resp.status == 401:
@@ -163,18 +178,26 @@ class SiriusHub:
                 if resp.status != 200:
                     _LOGGER.error("Failed to discover devices (HTTP %d)", resp.status)
                     return []
-                raw_devices = data if isinstance(data, list) else data.get("devices", [])
+                raw_devices = (
+                    data if isinstance(data, list) else data.get("devices", [])
+                )
                 result = [self._flatten_device(d) for d in raw_devices]
                 _LOGGER.debug("Discovered %d device(s)", len(result))
                 for d in result:
-                    _LOGGER.debug("  %s: name=%r, model=%r, fw=%r",
-                                   d.get("uid"), d.get("name"),
-                                   d.get("description"), d.get(PROP_FW_VERSION))
+                    _LOGGER.debug(
+                        "  %s: name=%r, model=%r, fw=%r",
+                        d.get("uid"),
+                        d.get("name"),
+                        d.get("description"),
+                        d.get(PROP_FW_VERSION),
+                    )
                 return result
         except SiriusAuthError:
             raise
         except (asyncio.TimeoutError, aiohttp.ClientError):
-            _LOGGER.error("Device discovery failed%s", " after retries" if retry else "")
+            _LOGGER.error(
+                "Device discovery failed%s", " after retries" if retry else ""
+            )
             return []
 
     def _flatten_device(self, device: dict[str, Any]) -> dict[str, Any]:
@@ -229,7 +252,10 @@ class SiriusHub:
         """Send a setValue command. Device auto-publishes updated status via MQTT."""
         request_id = str(uuid.uuid4())
         _LOGGER.debug(
-            "setValue for device %s: %s (requestId=%s)", device_id, parameters, request_id
+            "setValue for device %s: %s (requestId=%s)",
+            device_id,
+            parameters,
+            request_id,
         )
         payload = {
             "command": "setValue",
@@ -267,7 +293,11 @@ class SiriusHub:
                     pass
 
                 if resp.status != 200:
-                    _LOGGER.error("set_value failed for device %s (HTTP %d)", device_id, resp.status)
+                    _LOGGER.error(
+                        "set_value failed for device %s (HTTP %d)",
+                        device_id,
+                        resp.status,
+                    )
                 else:
                     _LOGGER.debug("set_value succeeded for device %s", device_id)
                 return data

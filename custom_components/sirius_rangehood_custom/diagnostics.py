@@ -12,7 +12,8 @@ from .const import DOMAIN
 
 
 async def async_get_config_entry_diagnostics(
-    hass: HomeAssistant, entry: ConfigEntry,
+    hass: HomeAssistant,
+    entry: ConfigEntry,
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
     data = hass.data[DOMAIN][entry.entry_id]
@@ -22,9 +23,7 @@ async def async_get_config_entry_diagnostics(
 
     return {
         "entry_id": entry.entry_id,
-        "data": {
-            k: v for k, v in entry.data.items() if k != "password"
-        },
+        "data": {k: v for k, v in entry.data.items() if k != "password"},
         "devices": [
             {
                 "id": d["id"],
@@ -47,14 +46,20 @@ async def async_get_config_entry_diagnostics(
             ),
         },
         "mqtt": {
-            "connected": mqtt._client.is_connected() if mqtt and mqtt._client else False,
+            "connected": mqtt._client.is_connected()
+            if mqtt and mqtt._client
+            else False,
             "host": mqtt._host if mqtt else None,
-        } if mqtt else None,
+        }
+        if mqtt
+        else None,
     }
 
 
 async def async_get_device_diagnostics(
-    hass: HomeAssistant, entry: ConfigEntry, device: DeviceEntry,
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    device: DeviceEntry,
 ) -> dict[str, Any]:
     """Return diagnostics for a specific device."""
     data = hass.data[DOMAIN][entry.entry_id]
@@ -80,6 +85,8 @@ async def async_get_device_diagnostics(
             "last_update_success": data["coordinator"].last_update_success,
         },
         "hub": {
-            "token_expiry": hub._token_expiry.isoformat() if hub._token_expiry else None,
+            "token_expiry": hub._token_expiry.isoformat()
+            if hub._token_expiry
+            else None,
         },
     }
