@@ -12,7 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import (
-    CAP_TIMER_MODIFIABLE,
+    CAP_TIMER_ACTIVE,
     CAP_TIMER_VALUE,
     SiriusAuthError,
 )
@@ -91,9 +91,9 @@ class SiriusRangehoodTimer(CoordinatorEntity, NumberEntity):
 
     @property
     def available(self) -> bool:
-        """Entity is available when the timer is modifiable."""
+        """Disable the number while the timer is actively counting down."""
         state = self._get_device_state()
-        return bool(state.get(CAP_TIMER_MODIFIABLE, False))
+        return not bool(state.get(CAP_TIMER_ACTIVE, False))
 
     async def _async_send_command(self, params: list[dict[str, Any]]) -> None:
         """Send a setValue command via the hub."""
