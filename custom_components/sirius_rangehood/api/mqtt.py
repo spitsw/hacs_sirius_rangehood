@@ -17,11 +17,12 @@ StatusCallback = Callable[[str, dict[str, Any]], None]  # device_id, payload
 
 
 async def _create_ssl_context() -> ssl.SSLContext:
-    """Create an SSL context that validates the certificate chain but ignores expiry.
+    """Create an SSL context that tolerates known certificate issues.
 
-    The Sirius MQTT server has a valid certificate that has expired; this
-    context skips the expiry check while still validating everything else
-    (chain of trust, hostname, etc.).
+    The Sirius MQTT server presents a valid DigiCert-signed certificate
+    that has expired. Some HA Docker images may also lack the DigiCert
+    root CA. The context uses ``CERT_OPTIONAL`` so the TLS handshake
+    completes even when the certificate chain can't be fully verified.
 
     ``ssl.create_default_context()`` calls ``load_default_certs()`` which
     reads system certificate files from disk — blocking I/O that must not
@@ -30,17 +31,11 @@ async def _create_ssl_context() -> ssl.SSLContext:
     context = await asyncio.get_event_loop().run_in_executor(
         None, ssl.create_default_context
     )
-
-    def _verify_callback(conn, cert, errno, depth, preverify_ok):  # noqa: ANN001
-        # Accept known transient verification errors:
-        #  10 = X509_V_ERR_CERT_HAS_EXPIRED      (cert valid but expired)
-        #  20 = X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY  (root CA not in trust store)
-        if errno in (10, 20):
-            return True
-        return preverify_ok
-
-    context.verify_callback = _verify_callback
-    return context
+    # Don't abort the handshake on certificate validation errors —
+    # the cert is known to be valid but expired, and the issuer root
+    # may not be in the container's trust store.
+    context.verify_mode = ssl.CERT_OPTIONAL
+    context.check_hostname = False
 
 
 class SiriusMQTT:
