@@ -2,4 +2,4 @@ default_config:
 logger:
   default: warning
   logs:
-    custom_components.sirius_rangehood: debug
+    custom_components.sirius_rangehood_custom: debug
