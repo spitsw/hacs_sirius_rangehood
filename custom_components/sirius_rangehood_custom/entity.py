@@ -7,8 +7,7 @@ from typing import Any
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .api import PROP_DEVICE_NAME, PROP_FW_CODE, PROP_FW_VERSION
-from .api import SiriusAuthError
+from .api import PROP_DEVICE_NAME, PROP_FW_CODE, PROP_FW_VERSION, SiriusAuthError
 from .const import DOMAIN
 
 

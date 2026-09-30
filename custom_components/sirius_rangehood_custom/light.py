@@ -4,13 +4,25 @@ from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.light import ATTR_BRIGHTNESS, ATTR_COLOR_TEMP_KELVIN, ColorMode, LightEntity
+from homeassistant.components.light import (
+    ATTR_BRIGHTNESS,
+    ATTR_COLOR_TEMP_KELVIN,
+    ColorMode,
+    LightEntity,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .api import CAP_LIGHT_BRIGHTNESS, CAP_LIGHT_COLOR_TEMP, CAP_LIGHT_ONOFF
-from .api import LIGHT_BRIGHTNESS_MAX, LIGHT_BRIGHTNESS_MIN, LIGHT_COLOR_TEMP_KELVIN_MAX, LIGHT_COLOR_TEMP_KELVIN_MIN
+from .api import (
+    CAP_LIGHT_BRIGHTNESS,
+    CAP_LIGHT_COLOR_TEMP,
+    CAP_LIGHT_ONOFF,
+    LIGHT_BRIGHTNESS_MAX,
+    LIGHT_BRIGHTNESS_MIN,
+    LIGHT_COLOR_TEMP_KELVIN_MAX,
+    LIGHT_COLOR_TEMP_KELVIN_MIN,
+)
 from .const import DOMAIN
 from .entity import SiriusEntity, sirius_device_info
 

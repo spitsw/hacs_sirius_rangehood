@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -15,15 +15,13 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
+from .api import GET_STATUS_INTERVAL, SiriusAuthError, SiriusHub, SiriusMQTT
 from .const import (
     CONF_INSECURE_TLS,
     CONF_SIRIUS_ENDPOINT,
     CONF_SIRIUS_MQTTS_ENDPOINT,
     DOMAIN,
 )
-from .api import GET_STATUS_INTERVAL
-from .api import SiriusHub, SiriusAuthError
-from .api import SiriusMQTT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -127,7 +125,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         # Initial refresh sends getStatus to bootstrap live state via MQTT
         await coordinator.async_config_entry_first_refresh()
-    except Exception:  # noqa: BLE001
+    except Exception:
         _LOGGER.exception("Initial refresh failed, cleaning up")
         await mqtt.async_stop()
         return False
@@ -144,10 +142,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Refresh the auth token before it expires."""
         try:
             await hub.async_ensure_token()
-        except Exception:  # noqa: BLE001
+        except Exception:
             _LOGGER.exception("Failed to refresh auth token")
         if hub._token_expiry:
-            remaining = (hub._token_expiry - datetime.now()).total_seconds() - 60
+            remaining = (hub._token_expiry - datetime.now(timezone.utc)).total_seconds() - 60
             if remaining > 0:
                 entry.async_on_unload(
                     async_call_later(hass, remaining, _refresh_token)

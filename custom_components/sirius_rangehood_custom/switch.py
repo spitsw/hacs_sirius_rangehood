@@ -9,7 +9,13 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .api import CAP_BI_POWER_ENABLED, CAP_POWER, CAP_TIMER_ACTIVE, CAP_TIMER_ENABLE, CAP_TIMER_VALUE
+from .api import (
+    CAP_BI_POWER_ENABLED,
+    CAP_POWER,
+    CAP_TIMER_ACTIVE,
+    CAP_TIMER_ENABLE,
+    CAP_TIMER_VALUE,
+)
 from .const import DOMAIN
 from .entity import SiriusEntity, sirius_device_info
 

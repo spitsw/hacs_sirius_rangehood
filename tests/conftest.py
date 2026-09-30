@@ -54,11 +54,9 @@ for path in (
 
 class _MockSensorEntity:
     """Stand-in for SensorEntity — works as a real base class."""
-    pass
 
 class _MockSwitchEntity:
     """Stand-in for SwitchEntity — works as a real base class."""
-    pass
 
 
 
@@ -83,7 +81,6 @@ class _MockCoordinatorEntity:
 
 class _MockFanEntity:
     """Stand-in for FanEntity — works as a real base class."""
-    pass
 
 ha_coord = sys.modules["homeassistant.helpers.update_coordinator"]
 ha_coord.DataUpdateCoordinator = MagicMock
@@ -94,7 +91,6 @@ ha_storage.Store = MagicMock
 
 class _MockLightEntity:
     """Stand-in for LightEntity — works as a real base class."""
-    pass
 
 ha_light = sys.modules["homeassistant.components.light"]
 ha_light.ATTR_COLOR_TEMP_KELVIN = "color_temp_kelvin"

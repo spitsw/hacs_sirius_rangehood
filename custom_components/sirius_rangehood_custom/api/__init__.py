@@ -6,8 +6,8 @@ never makes direct API calls.
 """
 
 from .const import (
-    CAP_BOOST_VALUE,
     CAP_BI_POWER_ENABLED,
+    CAP_BOOST_VALUE,
     CAP_FAN_SPEED,
     CAP_FILTER_VALUE,
     CAP_FILTER_WORN,
@@ -38,7 +38,6 @@ from .const import (
     PROP_DEVICE_REF,
     PROP_DEVICE_TYPE,
     PROP_FW_CODE,
-    PROP_FW_CODE,
     PROP_FW_VERSION,
     PROP_IP_ADDRESS,
     PROP_RSSI,
@@ -50,12 +49,9 @@ from .hub import SiriusAuthError, SiriusHub
 from .mqtt import SiriusMQTT
 
 __all__ = [
-    "SiriusAuthError",
-    "SiriusHub",
-    "SiriusMQTT",
+    "CAP_BI_POWER_ENABLED",
     # Constants
     "CAP_BOOST_VALUE",
-    "CAP_BI_POWER_ENABLED",
     "CAP_FAN_SPEED",
     "CAP_FILTER_VALUE",
     "CAP_FILTER_WORN",
@@ -86,11 +82,13 @@ __all__ = [
     "PROP_DEVICE_REF",
     "PROP_DEVICE_TYPE",
     "PROP_FW_CODE",
-    "PROP_FW_CODE",
     "PROP_FW_VERSION",
     "PROP_IP_ADDRESS",
     "PROP_RSSI",
     "PROP_SECURE_ID",
     "PROP_SSID",
     "SPEED_TO_PERCENTAGE",
+    "SiriusAuthError",
+    "SiriusHub",
+    "SiriusMQTT",
 ]

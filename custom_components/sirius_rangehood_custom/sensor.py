@@ -29,7 +29,6 @@ from .api import (
 from .const import DOMAIN
 from .entity import SiriusEntity, sirius_device_info
 
-
 SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(key=PROP_IP_ADDRESS, translation_key="ip_address", name="IP Address", icon="mdi:ip-network", entity_category=EntityCategory.DIAGNOSTIC),
     SensorEntityDescription(key=PROP_RSSI, translation_key="rssi", name="RSSI", icon="mdi:wifi", entity_category=EntityCategory.DIAGNOSTIC),

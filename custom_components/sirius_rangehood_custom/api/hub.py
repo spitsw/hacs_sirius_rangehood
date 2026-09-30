@@ -5,16 +5,21 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timedelta
 from collections.abc import Callable, Coroutine
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, TypeVar
 
 import aiohttp
-
 from homeassistant.helpers.storage import Store
 
-from .const import API_DEVICES, API_LOGIN, API_SET_VALUE, API_TIMEOUT, PROP_FW_VERSION, VERSION
+from .const import (
+    API_DEVICES,
+    API_LOGIN,
+    API_SET_VALUE,
+    API_TIMEOUT,
+    PROP_FW_VERSION,
+    VERSION,
+)
 
 _USER_AGENT = f"HomeAssistant-CustomIntegration-spitsw/{VERSION}"
 _DEVICE_TYPE = "home_assistant"
@@ -87,7 +92,7 @@ class SiriusHub:
     async def async_ensure_token(self, retry: bool = True) -> str:
         """Return a valid token, refreshing or logging in if needed."""
         async with self._lock:
-            if self._token and self._token_expiry and self._token_expiry > datetime.now():
+            if self._token and self._token_expiry and self._token_expiry > datetime.now(timezone.utc):
                 return self._token
             return await self._async_login(retry=retry)
 
@@ -121,7 +126,7 @@ class SiriusHub:
                     _LOGGER.error("Login failed (HTTP %d)", resp.status)
                     raise SiriusAuthError(f"Login failed: {data}")
                 self._token = data["JWT"]
-                self._token_expiry = datetime.now() + timedelta(
+                self._token_expiry = datetime.now(timezone.utc) + timedelta(
                     seconds=data.get("expires", 3600)
                 )
                 if self._store:

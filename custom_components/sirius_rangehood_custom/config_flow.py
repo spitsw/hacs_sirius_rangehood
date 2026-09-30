@@ -6,24 +6,24 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.config_entries import ConfigFlow
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from .api import (
+    DEFAULT_SIRIUS_ENDPOINT,
+    DEFAULT_SIRIUS_MQTTS_ENDPOINT,
+    SiriusAuthError,
+    SiriusHub,
+)
 from .const import (
     CONF_INSECURE_TLS,
     CONF_SIRIUS_ENDPOINT,
     CONF_SIRIUS_MQTTS_ENDPOINT,
     DOMAIN,
 )
-from .api import (
-    DEFAULT_SIRIUS_ENDPOINT,
-    DEFAULT_SIRIUS_MQTTS_ENDPOINT,
-)
-from .api import SiriusHub, SiriusAuthError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ async def _try_discover_devices(
     except SiriusAuthError:
         errors["base"] = "invalid_auth"
         return None
-    except Exception:  # noqa: BLE001
+    except Exception:
         _LOGGER.exception("Unexpected error during config flow")
         errors["base"] = "cannot_connect"
         return None

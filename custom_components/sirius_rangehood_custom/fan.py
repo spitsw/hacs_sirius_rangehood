@@ -9,8 +9,15 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .api import CAP_FAN_SPEED, FAN_SPEED_COUNT, FAN_SPEED_LOW, FAN_SPEED_OFF, PERCENTAGE_TO_SPEED, SPEED_TO_PERCENTAGE
-from .api import SiriusAuthError
+from .api import (
+    CAP_FAN_SPEED,
+    FAN_SPEED_COUNT,
+    FAN_SPEED_LOW,
+    FAN_SPEED_OFF,
+    PERCENTAGE_TO_SPEED,
+    SPEED_TO_PERCENTAGE,
+    SiriusAuthError,
+)
 from .const import DOMAIN
 from .entity import SiriusEntity, sirius_device_info
 
@@ -76,7 +83,7 @@ class SiriusRangehoodFan(SiriusEntity, FanEntity):
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self._async_send_command(CAP_FAN_SPEED, FAN_SPEED_OFF)
 
-    async def _async_send_command(self, capability_id: str, value: int | float) -> None:
+    async def _async_send_command(self, capability_id: str, value: float) -> None:
         data = self.hass.data[DOMAIN][self._entry_id]
         hub = data["hub"]
         try:

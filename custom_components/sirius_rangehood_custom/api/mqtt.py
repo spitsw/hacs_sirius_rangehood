@@ -6,7 +6,8 @@ import asyncio
 import json
 import logging
 import ssl
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 from urllib.parse import urlparse
 
 import paho.mqtt.client as mqtt
@@ -41,7 +42,7 @@ class SiriusMQTT:
         self._host = parsed.hostname or "localhost"
         self._port = parsed.port or self._DEFAULT_PORT
 
-    def _on_connect(self, _client, _userdata, _flags, rc) -> None:  # noqa: ANN001
+    def _on_connect(self, _client, _userdata, _flags, rc) -> None:
         """Handle connection events."""
         if rc == 0:
             _LOGGER.info("MQTT connected to %s", self._host)
@@ -50,11 +51,11 @@ class SiriusMQTT:
         else:
             _LOGGER.error("MQTT connection failed (rc=%d)", rc)
 
-    def _on_disconnect(self, _client, _userdata, rc) -> None:  # noqa: ANN001
+    def _on_disconnect(self, _client, _userdata, rc) -> None:
         """Handle disconnection."""
         _LOGGER.warning("MQTT disconnected (rc=%d), reconnecting...", rc)
 
-    def _on_message(self, _client, _userdata, msg) -> None:  # noqa: ANN001
+    def _on_message(self, _client, _userdata, msg) -> None:
         """Handle incoming MQTT messages."""
         topic = msg.topic
         try:

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 import pytest
 
 from custom_components.sirius_rangehood_custom.api.hub import SiriusAuthError, SiriusHub
