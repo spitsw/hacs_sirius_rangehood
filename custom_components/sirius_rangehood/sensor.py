@@ -136,19 +136,16 @@ async def async_setup_entry(
     for device in devices:
         did = device.get("uid", str(device["id"]))
         for description in SENSOR_DESCRIPTIONS:
-            if description.key == CAP_FILTER_VALUE:
-                # Custom sensor for filter countdown — convert to hours
-                entities.append(
-                    SiriusRangehoodFilterCountdown(
-                        coordinator, did, device, entry
-                    )
+            entities.append(
+                SiriusRangehoodSensor(
+                    coordinator, did, device, entry, description
                 )
-            else:
-                entities.append(
-                    SiriusRangehoodSensor(
-                        coordinator, did, device, entry, description
-                    )
-                )
+            )
+
+        # Custom sensor — filter countdown in hours instead of raw seconds
+        entities.append(
+            SiriusRangehoodFilterCountdown(coordinator, did, device, entry)
+        )
 
         if CAP_TIMER_ENABLE in device.get("_limits", {}):
             entities.append(
