@@ -124,22 +124,75 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
             },
         )
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Reconfigure an existing entry — update credentials or endpoints."""
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+        current_endpoint = entry.data.get(CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT)
+        current_mqtts = entry.data.get(CONF_SIRIUS_MQTTS_ENDPOINT, DEFAULT_SIRIUS_MQTTS_ENDPOINT)
+
+        if user_input is not None:
+            devices = await _try_discover_devices(
+                self.hass, user_input, errors,
+                sirius_endpoint=current_endpoint,
+                mqtts_endpoint=current_mqtts,
+            )
+            if devices is not None:
+                self._user_input = user_input
+                self._devices = devices
+                return await self.async_step_update_method()
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_USERNAME, default=entry.data.get(CONF_USERNAME, "")): str,
+                vol.Required(CONF_PASSWORD): str,
+            }
+        )
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=schema,
+            errors=errors,
+        )
+
+    async def async_step_update_method(
+        self, _: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Menu for reconfigure: keep endpoints or change them."""
+        return self.async_show_menu(
+            step_id="update_method",
+            menu_options={
+                "finish": "Keep current endpoints",
+                "endpoints": "Change endpoints",
+            },
+        )
+
     async def async_step_finish(
         self, _: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Create the config entry with default endpoints."""
+        """Create or update the config entry with current settings."""
         data = {
             **self._user_input,
-            CONF_SIRIUS_ENDPOINT: DEFAULT_SIRIUS_ENDPOINT,
-            CONF_SIRIUS_MQTTS_ENDPOINT: DEFAULT_SIRIUS_MQTTS_ENDPOINT,
-        }
-        return self.async_create_entry(
-            title=(
-                f"Sirius Rangehood ({len(self._devices)} device"
-                f"{'s' if len(self._devices) > 1 else ''})"
+            CONF_SIRIUS_ENDPOINT: (
+                self._user_input.get(CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT)
             ),
-            data=data,
+            CONF_SIRIUS_MQTTS_ENDPOINT: (
+                self._user_input.get(CONF_SIRIUS_MQTTS_ENDPOINT, DEFAULT_SIRIUS_MQTTS_ENDPOINT)
+            ),
+            CONF_INSECURE_TLS: self._user_input.get(CONF_INSECURE_TLS, False),
+        }
+        title = (
+            f"Sirius Rangehood ({len(self._devices)} device"
+            f"{'s' if len(self._devices) > 1 else ''})"
         )
+
+        if reconf := self._get_reconfigure_entry():
+            return self.async_update_reload_and_abort(
+                reconf,
+                data={**reconf.data, **data},
+            )
+        return self.async_create_entry(title=title, data=data)
 
     async def async_step_endpoints(
         self, user_input: dict[str, Any] | None = None
@@ -161,13 +214,16 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
                     CONF_SIRIUS_MQTTS_ENDPOINT: user_input[CONF_SIRIUS_MQTTS_ENDPOINT],
                     CONF_INSECURE_TLS: user_input.get(CONF_INSECURE_TLS, False),
                 }
-                return self.async_create_entry(
-                    title=(
-                        f"Sirius Rangehood ({len(self._devices)} device"
-                        f"{'s' if len(self._devices) > 1 else ''})"
-                    ),
-                    data=data,
+                title = (
+                    f"Sirius Rangehood ({len(self._devices)} device"
+                    f"{'s' if len(self._devices) > 1 else ''})"
                 )
+                if reconf := self._get_reconfigure_entry():
+                    return self.async_update_reload_and_abort(
+                        reconf,
+                        data={**reconf.data, **data},
+                    )
+                return self.async_create_entry(title=title, data=data)
 
         return self.async_show_form(
             step_id="endpoints",
