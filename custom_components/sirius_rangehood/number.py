@@ -9,8 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .api import CAP_TIMER_ACTIVE, CAP_TIMER_MODIFIABLE, CAP_TIMER_VALUE
-from .api import SiriusAuthError
+from .api import CAP_TIMER_ACTIVE, CAP_TIMER_MODIFIABLE, CAP_TIMER_VALUE, PROP_FW_VERSION
 from .const import DOMAIN
 from .entity import SiriusEntity, sirius_device_info
 
@@ -65,11 +64,3 @@ class SiriusRangehoodTimer(SiriusEntity, NumberEntity):
     def available(self) -> bool:
         state = self._get_device_state()
         return bool(state.get(CAP_TIMER_MODIFIABLE, False)) and not bool(state.get(CAP_TIMER_ACTIVE, False))
-
-    async def _async_send_command(self, params: list[dict[str, Any]]) -> None:
-        data = self.hass.data[DOMAIN][self._entry_id]
-        hub = data["hub"]
-        try:
-            await hub.async_send_command(self._device_id, params)
-        except SiriusAuthError:
-            data.get("reauth", lambda: None)()

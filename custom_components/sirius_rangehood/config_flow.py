@@ -50,7 +50,6 @@ async def _try_discover_devices(
     user_input: dict[str, Any],
     errors: dict[str, str],
     sirius_endpoint: str = DEFAULT_SIRIUS_ENDPOINT,
-    mqtts_endpoint: str = DEFAULT_SIRIUS_MQTTS_ENDPOINT,
 ) -> list[dict[str, Any]] | None:
     """Validate credentials and discover Sirius devices."""
     session = async_get_clientsession(hass)
@@ -104,16 +103,13 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             sirius_endpoint = DEFAULT_SIRIUS_ENDPOINT
-            mqtts_endpoint = DEFAULT_SIRIUS_MQTTS_ENDPOINT
             if is_reconf:
                 entry = self._get_reconfigure_entry()
                 sirius_endpoint = entry.data.get(CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT)
-                mqtts_endpoint = entry.data.get(CONF_SIRIUS_MQTTS_ENDPOINT, DEFAULT_SIRIUS_MQTTS_ENDPOINT)
 
             devices = await _try_discover_devices(
                 self.hass, user_input, errors,
                 sirius_endpoint=sirius_endpoint,
-                mqtts_endpoint=mqtts_endpoint,
             )
             if devices is not None:
                 self._user_input = user_input
@@ -218,46 +214,4 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_reauth(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Re-authenticate with new credentials after a token rejection."""
-        entry = self._get_reauth_entry()
-        errors: dict[str, str] = {}
-        current_endpoint = entry.data.get(CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT)
-        current_mqtts = entry.data.get(CONF_SIRIUS_MQTTS_ENDPOINT, DEFAULT_SIRIUS_MQTTS_ENDPOINT)
-        current_insecure = entry.data.get(CONF_INSECURE_TLS, False)
-
-        if user_input is not None:
-            devices = await _try_discover_devices(
-                self.hass, user_input, errors,
-                sirius_endpoint=current_endpoint,
-                mqtts_endpoint=current_mqtts,
-            )
-            if devices is not None:
-                _LOGGER.info("Sirius reauth succeeded, %d device(s)", len(devices))
-                return self.async_update_reload_and_abort(
-                    entry,
-                    data={
-                        **entry.data,
-                        CONF_USERNAME: user_input[CONF_USERNAME],
-                        CONF_PASSWORD: user_input[CONF_PASSWORD],
-                        CONF_INSECURE_TLS: user_input.get(CONF_INSECURE_TLS, current_insecure),
-                    },
-                )
-        else:
-            user_input = {
-                CONF_USERNAME: entry.data.get(CONF_USERNAME, ""),
-                CONF_PASSWORD: "",
-                CONF_INSECURE_TLS: current_insecure,
-            }
-
-        schema = vol.Schema(
-            {
-                vol.Required(CONF_USERNAME, default=user_input[CONF_USERNAME]): str,
-                vol.Required(CONF_PASSWORD): str,
-                vol.Optional(CONF_INSECURE_TLS, default=user_input[CONF_INSECURE_TLS]): bool,
-            }
-        )
-        return self.async_show_form(
-            step_id="reauth",
-            data_schema=schema,
-            errors=errors,
-            description_placeholders={"endpoint": current_endpoint},
-        )
+        return await self.async_step_user(user_input)

@@ -8,6 +8,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import PROP_DEVICE_NAME, PROP_FW_CODE, PROP_FW_VERSION
+from .api import SiriusAuthError
 from .const import DOMAIN
 
 
@@ -32,17 +33,22 @@ def sirius_device_info(device_id: str, device: dict[str, Any]) -> DeviceInfo:
 
 
 class SiriusEntity(CoordinatorEntity):
-    """Base class for Sirius Rangehood entities with common helpers.
-
-    Subclasses must set ``_device_id``, ``_entry_id``, and
-    ``_attr_device_info`` in their ``__init__``.
-    """
+    """Base class for Sirius Rangehood entities."""
 
     _attr_has_entity_name = True
 
     def _get_device_state(self) -> dict[str, Any]:
         """Return latest device state from the coordinator."""
         return self.coordinator.data.get(self._device_id, {})  # type: ignore[attr-defined]
+
+    async def _async_send_command(self, params: list[dict[str, Any]]) -> None:
+        """Send a setValue command via the hub."""
+        data = self.hass.data[DOMAIN][self._entry_id]  # type: ignore[attr-defined]
+        hub = data["hub"]
+        try:
+            await hub.async_send_command(self._device_id, params)  # type: ignore[attr-defined]
+        except SiriusAuthError:
+            data.get("reauth", lambda: None)()
 
     @property
     def extra_state_attributes(self) -> dict[str, str] | None:

@@ -11,7 +11,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import CAP_LIGHT_BRIGHTNESS, CAP_LIGHT_COLOR_TEMP, CAP_LIGHT_ONOFF
 from .api import LIGHT_BRIGHTNESS_MAX, LIGHT_BRIGHTNESS_MIN, LIGHT_COLOR_TEMP_KELVIN_MAX, LIGHT_COLOR_TEMP_KELVIN_MIN
-from .api import SiriusAuthError
 from .const import DOMAIN
 from .entity import SiriusEntity, sirius_device_info
 
@@ -84,11 +83,3 @@ class SiriusRangehoodLight(SiriusEntity, LightEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self._async_send_command([{"id": CAP_LIGHT_ONOFF, "value": 0.0}])
-
-    async def _async_send_command(self, params: list[dict[str, Any]]) -> None:
-        data = self.hass.data[DOMAIN][self._entry_id]
-        hub = data["hub"]
-        try:
-            await hub.async_send_command(self._device_id, params)
-        except SiriusAuthError:
-            data.get("reauth", lambda: None)()
