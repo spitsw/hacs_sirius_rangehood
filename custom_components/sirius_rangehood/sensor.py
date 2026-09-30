@@ -35,12 +35,6 @@ from .const import DOMAIN
 SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     # -- Diagnostics from MQTT / live data --
     SensorEntityDescription(
-        key=CAP_FILTER_VALUE,
-        translation_key="filter_clean_countdown",
-        name="Filter Clean Countdown",
-        icon="mdi:air-filter",
-    ),
-    SensorEntityDescription(
         key=PROP_IP_ADDRESS,
         translation_key="ip_address",
         name="IP Address",
@@ -142,11 +136,19 @@ async def async_setup_entry(
     for device in devices:
         did = device.get("uid", str(device["id"]))
         for description in SENSOR_DESCRIPTIONS:
-            entities.append(
-                SiriusRangehoodSensor(
-                    coordinator, did, device, entry, description
+            if description.key == CAP_FILTER_VALUE:
+                # Custom sensor for filter countdown — convert to hours
+                entities.append(
+                    SiriusRangehoodFilterCountdown(
+                        coordinator, did, device, entry
+                    )
                 )
-            )
+            else:
+                entities.append(
+                    SiriusRangehoodSensor(
+                        coordinator, did, device, entry, description
+                    )
+                )
 
         if CAP_TIMER_ENABLE in device.get("_limits", {}):
             entities.append(
@@ -188,6 +190,48 @@ class SiriusRangehoodSensor(CoordinatorEntity, SensorEntity):
         """Return the sensor value."""
         state = self._get_device_state()
         return state.get(self.entity_description.key)
+
+
+class SiriusRangehoodFilterCountdown(CoordinatorEntity, SensorEntity):
+    """Filter clean countdown displayed in hours.
+
+    The API returns the remaining filter life in seconds; HA shows
+    hours for readability.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "filter_clean_countdown"
+    _attr_native_unit_of_measurement = "h"
+    _attr_icon = "mdi:air-filter"
+
+    def __init__(
+        self,
+        coordinator,
+        device_id: str,
+        device: dict[str, Any],
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the filter countdown sensor."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._entry_id = entry.entry_id
+        self._attr_unique_id = f"{device_id}_{CAP_FILTER_VALUE}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, device_id)},
+        )
+
+    def _get_device_state(self) -> dict[str, Any]:
+        """Return latest device state."""
+        return self.coordinator.data.get(self._device_id, {})
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the remaining filter life in hours."""
+        state = self._get_device_state()
+        val = state.get(CAP_FILTER_VALUE)
+        if val is not None:
+            return round(float(val) / 3600, 1)
+        return None
 
 
 class SiriusRangehoodTimerOffTime(CoordinatorEntity, SensorEntity):
