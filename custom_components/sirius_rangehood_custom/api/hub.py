@@ -17,6 +17,7 @@ from homeassistant.helpers.storage import Store
 from .const import API_DEVICES, API_LOGIN, API_SET_VALUE, API_TIMEOUT, PROP_FW_VERSION, VERSION
 
 _USER_AGENT = f"HomeAssistant-CustomIntegration-spitsw/{VERSION}"
+_DEVICE_TYPE = "home_assistant"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -210,7 +211,7 @@ class SiriusHub:
         _LOGGER.debug("getStatus for device %s (requestId=%s)", device_id, request_id)
         payload = {
             "command": "getStatus",
-            "deviceType": "smartphone",
+            "deviceType": _DEVICE_TYPE,
             "parameters": [],
             "requestId": request_id,
         }
@@ -227,7 +228,7 @@ class SiriusHub:
         )
         payload = {
             "command": "setValue",
-            "deviceType": "smartphone",
+            "deviceType": _DEVICE_TYPE,
             "parameters": parameters,
             "requestId": request_id,
         }
