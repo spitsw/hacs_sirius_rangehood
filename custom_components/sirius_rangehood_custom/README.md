@@ -1,7 +1,6 @@
 # Sirius Rangehood
 
-Home Assistant integration for WiFi-enabled Sirius rangehoods (Cappa,
-Falmec, and other brands using the Sirius IoT platform).
+Home Assistant integration for WiFi-enabled Sirius rangehoods.
 
 ## Quick Start
 
