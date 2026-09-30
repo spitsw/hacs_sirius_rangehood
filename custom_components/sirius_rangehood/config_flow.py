@@ -27,13 +27,6 @@ from .api import SiriusHub, SiriusAuthError
 
 _LOGGER = logging.getLogger(__name__)
 
-STEP_USER_DATA_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_USERNAME): str,
-        vol.Required(CONF_PASSWORD): str,
-    }
-)
-
 STEP_ENDPOINTS_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_SIRIUS_ENDPOINT, default=DEFAULT_SIRIUS_ENDPOINT): str,
@@ -93,78 +86,70 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial step — credentials only."""
+        """Handle the initial or reconfigure step — credentials only."""
         errors: dict[str, str] = {}
+        is_reconf = self.source == "reauth" or self._get_reconfigure_entry() is not None
 
-        if user_input is not None:
-            devices = await _try_discover_devices(self.hass, user_input, errors)
-            if devices is not None:
-                self._user_input = user_input
-                self._devices = devices
-                self._async_abort_entries_match(
-                    {CONF_USERNAME: user_input[CONF_USERNAME]}
-                )
-                return await self.async_step_setup_method()
+        prefill = {}
+        if user_input is None and is_reconf:
+            entry = self._get_reconfigure_entry() or self._get_reauth_entry()
+            prefill = {CONF_USERNAME: entry.data.get(CONF_USERNAME, "")}
 
-        return self.async_show_form(
-            step_id="user",
-            data_schema=STEP_USER_DATA_SCHEMA,
-            errors=errors,
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_USERNAME, default=prefill.get(CONF_USERNAME, "")): str,
+                vol.Required(CONF_PASSWORD): str,
+            }
         )
 
-    async def async_step_setup_method(
-        self, _: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Show menu: finish with defaults or configure endpoints."""
-        return self.async_show_menu(
-            step_id="setup_method",
-            menu_options={
-                "finish": "Finish setup",
-                "endpoints": "Configure custom endpoints",
-            },
-        )
-
-    async def async_step_reconfigure(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Reconfigure an existing entry — update credentials or endpoints."""
-        entry = self._get_reconfigure_entry()
-        errors: dict[str, str] = {}
-        current_endpoint = entry.data.get(CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT)
-        current_mqtts = entry.data.get(CONF_SIRIUS_MQTTS_ENDPOINT, DEFAULT_SIRIUS_MQTTS_ENDPOINT)
-
         if user_input is not None:
+            sirius_endpoint = DEFAULT_SIRIUS_ENDPOINT
+            mqtts_endpoint = DEFAULT_SIRIUS_MQTTS_ENDPOINT
+            if is_reconf:
+                entry = self._get_reconfigure_entry()
+                sirius_endpoint = entry.data.get(CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT)
+                mqtts_endpoint = entry.data.get(CONF_SIRIUS_MQTTS_ENDPOINT, DEFAULT_SIRIUS_MQTTS_ENDPOINT)
+
             devices = await _try_discover_devices(
                 self.hass, user_input, errors,
-                sirius_endpoint=current_endpoint,
-                mqtts_endpoint=current_mqtts,
+                sirius_endpoint=sirius_endpoint,
+                mqtts_endpoint=mqtts_endpoint,
             )
             if devices is not None:
                 self._user_input = user_input
                 self._devices = devices
-                return await self.async_step_update_method()
+                if not is_reconf:
+                    self._async_abort_entries_match(
+                        {CONF_USERNAME: user_input[CONF_USERNAME]}
+                    )
+                return await self.async_step_menu()
 
-        schema = vol.Schema(
-            {
-                vol.Required(CONF_USERNAME, default=entry.data.get(CONF_USERNAME, "")): str,
-                vol.Required(CONF_PASSWORD): str,
-            }
-        )
         return self.async_show_form(
-            step_id="reconfigure",
+            step_id="user",
             data_schema=schema,
             errors=errors,
         )
 
-    async def async_step_update_method(
+    async def async_step_reauth(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Re-authenticate with new credentials after a token rejection."""
+        return await self.async_step_user(user_input)
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Reconfigure an existing entry."""
+        return await self.async_step_user(user_input)
+
+    async def async_step_menu(
         self, _: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Menu for reconfigure: keep endpoints or change them."""
+        """Show menu: finish with defaults or configure endpoints."""
+        is_reconf = self._get_reconfigure_entry() is not None
         return self.async_show_menu(
-            step_id="update_method",
+            step_id="menu",
             menu_options={
-                "finish": "Keep current endpoints",
-                "endpoints": "Change endpoints",
+                "finish": "Keep current endpoints" if is_reconf else "Finish setup",
+                "endpoints": "Change endpoints" if is_reconf else "Configure custom endpoints",
             },
         )
 
