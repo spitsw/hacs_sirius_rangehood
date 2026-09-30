@@ -122,9 +122,14 @@ class SiriusMQTT:
         """Connect to the MQTTS broker. Returns True if connection established."""
         self._client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
         if self._insecure_tls:
-            self._client.tls_set_context(ssl._create_unverified_context())
+            _LOGGER.warning("MQTT TLS verification disabled for %s:%d", self._host, self._port)
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            self._client.tls_set_context(ctx)
         else:
             self._client.tls_set_context(await _create_ssl_context())
+            _LOGGER.debug("MQTT TLS enabled (expired-cert tolerant) for %s:%d", self._host, self._port)
         self._client.username_pw_set(self._username, self._password)
         self._client.on_connect = self._on_connect
         self._client.on_disconnect = self._on_disconnect
@@ -135,19 +140,25 @@ class SiriusMQTT:
             self._connect_future = asyncio.get_event_loop().create_future()
             self._client.connect_async(self._host, self._port, keepalive=self._KEEPALIVE)
             self._client.loop_start()
+            _LOGGER.debug("Awaiting MQTT connection to %s:%d (timeout=%ds, insecure=%s)",
+                           self._host, self._port, _MQTT_CONNECT_TIMEOUT, self._insecure_tls)
             connected = await asyncio.wait_for(
                 self._connect_future, timeout=_MQTT_CONNECT_TIMEOUT
             )
             if connected:
-                _LOGGER.debug("MQTT connected to %s:%d", self._host, self._port)
+                _LOGGER.info("MQTT connected to %s:%d", self._host, self._port)
             else:
-                _LOGGER.error("MQTT connection to %s failed (rc != 0)", self._host)
+                _LOGGER.error("MQTT broker %s:%d rejected the connection", self._host, self._port)
             return connected
         except asyncio.TimeoutError:
-            _LOGGER.error("MQTT connection to %s timed out after %ds", self._host, _MQTT_CONNECT_TIMEOUT)
+            _LOGGER.error(
+                "MQTT connection to %s:%d timed out after %ds — check network/firewall "
+                "or that the hostname resolves correctly",
+                self._host, self._port, _MQTT_CONNECT_TIMEOUT,
+            )
             return False
         except Exception as err:  # noqa: BLE001
-            _LOGGER.error("MQTT connection failed: %s", err)
+            _LOGGER.error("MQTT connection to %s:%d failed: %s", self._host, self._port, err)
             return False
         finally:
             self._connect_future = None
