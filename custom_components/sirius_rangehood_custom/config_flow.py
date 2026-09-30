@@ -87,11 +87,15 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle the initial or reconfigure step — credentials only."""
         errors: dict[str, str] = {}
-        is_reconf = self.source == "reauth" or self._get_reconfigure_entry() is not None
+        is_reconf = self.source in ("reauth", "reconfigure")
 
         prefill = {}
         if user_input is None and is_reconf:
-            entry = self._get_reconfigure_entry() or self._get_reauth_entry()
+            entry = (
+                self._get_reconfigure_entry()
+                if self.source == "reconfigure"
+                else self._get_reauth_entry()
+            )
             prefill = {CONF_USERNAME: entry.data.get(CONF_USERNAME, "")}
 
         schema = vol.Schema(
@@ -104,7 +108,11 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             sirius_endpoint = DEFAULT_SIRIUS_ENDPOINT
             if is_reconf:
-                entry = self._get_reconfigure_entry()
+                entry = (
+                    self._get_reconfigure_entry()
+                    if self.source == "reconfigure"
+                    else self._get_reauth_entry()
+                )
                 sirius_endpoint = entry.data.get(CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT)
 
             devices = await _try_discover_devices(
@@ -140,7 +148,7 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
         self, _: dict[str, Any] | None = None
     ) -> FlowResult:
         """Show menu: finish with defaults or configure endpoints."""
-        is_reconf = self._get_reconfigure_entry() is not None
+        is_reconf = self.source == "reconfigure"
         return self.async_show_menu(
             step_id="menu",
             menu_options={
@@ -168,10 +176,17 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
             f"{'s' if len(self._devices) > 1 else ''})"
         )
 
-        if reconf := self._get_reconfigure_entry():
+        entry = (
+            self._get_reconfigure_entry()
+            if self.source == "reconfigure"
+            else self._get_reauth_entry()
+            if self.source == "reauth"
+            else None
+        )
+        if entry:
             return self.async_update_reload_and_abort(
-                reconf,
-                data={**reconf.data, **data},
+                entry,
+                data={**entry.data, **data},
             )
         return self.async_create_entry(title=title, data=data)
 
@@ -199,10 +214,17 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
                     f"Sirius Rangehood ({len(self._devices)} device"
                     f"{'s' if len(self._devices) > 1 else ''})"
                 )
-                if reconf := self._get_reconfigure_entry():
+                entry = (
+                    self._get_reconfigure_entry()
+                    if self.source == "reconfigure"
+                    else self._get_reauth_entry()
+                    if self.source == "reauth"
+                    else None
+                )
+                if entry:
                     return self.async_update_reload_and_abort(
-                        reconf,
-                        data={**reconf.data, **data},
+                        entry,
+                        data={**entry.data, **data},
                     )
                 return self.async_create_entry(title=title, data=data)
 
@@ -211,7 +233,3 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=STEP_ENDPOINTS_SCHEMA,
             errors=errors,
         )
-
-    async def async_step_reauth(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Re-authenticate with new credentials after a token rejection."""
-        return await self.async_step_user(user_input)
