@@ -5,7 +5,7 @@
   "zip_release": false,
   "render_readme": true,
   "homeassistant": "2026.3.0",
-  "domain": "sirius_rangehood",
+  "domain": "sirius_rangehood_custom",
   "country": [],
   "iot_class": "cloud_push",
   "integration_type": "device",

@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.sirius_rangehood.api.mqtt import SiriusMQTT
+from custom_components.sirius_rangehood_custom.api.mqtt import SiriusMQTT
 
 # OpenSSL error codes used by _verify_callback — these may not be exposed
 # as constants in all Python builds, so we reference them by value.

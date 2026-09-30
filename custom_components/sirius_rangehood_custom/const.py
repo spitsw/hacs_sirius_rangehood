@@ -1,6 +1,6 @@
 """Constants for the Sirius Rangehood integration (HA layer)."""
 
-DOMAIN = "sirius_rangehood"
+DOMAIN = "sirius_rangehood_custom"
 
 CONF_SIRIUS_ENDPOINT = "sirius_endpoint"
 CONF_SIRIUS_MQTTS_ENDPOINT = "sirius_mqtts_endpoint"

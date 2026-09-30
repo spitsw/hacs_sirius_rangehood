@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from custom_components.sirius_rangehood.config_flow import _validate_urls
+from custom_components.sirius_rangehood_custom.config_flow import _validate_urls
 
 
 class TestValidateURLs:

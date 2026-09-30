@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from custom_components.sirius_rangehood.api import (
+from custom_components.sirius_rangehood_custom.api import (
     CAP_FAN_SPEED,
     DEFAULT_SIRIUS_ENDPOINT,
     DEFAULT_SIRIUS_MQTTS_ENDPOINT,
@@ -14,7 +14,7 @@ from custom_components.sirius_rangehood.api import (
     PERCENTAGE_TO_SPEED,
     SPEED_TO_PERCENTAGE,
 )
-from custom_components.sirius_rangehood.const import DOMAIN
+from custom_components.sirius_rangehood_custom.const import DOMAIN
 
 
 def _nearest_speed(percentage: int) -> int:
@@ -72,7 +72,7 @@ class TestConstants:
     """Verify important constants are present and well-formed."""
 
     def test_domain(self):
-        assert DOMAIN == "sirius_rangehood"
+        assert DOMAIN == "sirius_rangehood_custom"
 
     def test_cap_fan_speed(self):
         assert CAP_FAN_SPEED == "device.fanSpeed"

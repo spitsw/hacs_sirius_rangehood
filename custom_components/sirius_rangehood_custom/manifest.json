@@ -1,5 +1,5 @@
 {
-  "domain": "sirius_rangehood",
+  "domain": "sirius_rangehood_custom",
   "name": "Sirius Rangehood",
   "version": "1.0.0",
   "config_flow": true,
