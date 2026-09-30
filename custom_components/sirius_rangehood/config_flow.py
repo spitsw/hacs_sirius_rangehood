@@ -29,11 +29,16 @@ _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_SIRIUS_ENDPOINT, default=DEFAULT_SIRIUS_ENDPOINT): str,
-        vol.Required(CONF_SIRIUS_MQTTS_ENDPOINT, default=DEFAULT_SIRIUS_MQTTS_ENDPOINT): str,
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
         vol.Optional(CONF_INSECURE_TLS, default=False): bool,
+    }
+)
+
+STEP_ENDPOINTS_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_SIRIUS_ENDPOINT, default=DEFAULT_SIRIUS_ENDPOINT): str,
+        vol.Required(CONF_SIRIUS_MQTTS_ENDPOINT, default=DEFAULT_SIRIUS_MQTTS_ENDPOINT): str,
     }
 )
 
@@ -51,20 +56,17 @@ async def _try_discover_devices(
     hass: HomeAssistant,
     user_input: dict[str, Any],
     errors: dict[str, str],
+    sirius_endpoint: str = DEFAULT_SIRIUS_ENDPOINT,
+    mqtts_endpoint: str = DEFAULT_SIRIUS_MQTTS_ENDPOINT,
 ) -> list[dict[str, Any]] | None:
-    """Validate credentials and discover Sirius devices.
-
-    Populates *errors* on failure; returns the device list on success or
-    *None* when errors were set (caller should re-show the form).
-    """
+    """Validate credentials and discover Sirius devices."""
     session = async_get_clientsession(hass)
-    insecure = user_input.get(CONF_INSECURE_TLS, False)
     hub = SiriusHub(
         session,
-        user_input[CONF_SIRIUS_ENDPOINT],
+        sirius_endpoint,
         user_input[CONF_USERNAME],
         user_input[CONF_PASSWORD],
-        insecure_tls=insecure,
+        insecure_tls=user_input.get(CONF_INSECURE_TLS, False),
     )
     try:
         devices = await hub.async_discover_devices(retry=False)
@@ -72,9 +74,7 @@ async def _try_discover_devices(
             _LOGGER.warning("Sirius login succeeded but no devices found")
             errors["base"] = "no_devices"
             return None
-        _LOGGER.info(
-            "Sirius authenticated, %d device(s) discovered", len(devices)
-        )
+        _LOGGER.info("Sirius authenticated, %d device(s) discovered", len(devices))
         return devices
     except SiriusAuthError:
         errors["base"] = "invalid_auth"
@@ -93,31 +93,21 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial step."""
+        """Handle the initial step — credentials only."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            url_error = _validate_urls(
-                user_input[CONF_SIRIUS_ENDPOINT],
-                user_input[CONF_SIRIUS_MQTTS_ENDPOINT],
-            )
-            if url_error:
-                errors["base"] = url_error
-            else:
+            devices = await _try_discover_devices(self.hass, user_input, errors)
+            if devices is not None:
+                self._user_input = user_input
+                self._devices = devices
                 self._async_abort_entries_match(
-                    {CONF_SIRIUS_ENDPOINT: user_input[CONF_SIRIUS_ENDPOINT]}
+                    {CONF_USERNAME: user_input[CONF_USERNAME]}
                 )
-                devices = await _try_discover_devices(
-                    self.hass, user_input, errors
+                return self.async_show_menu(
+                    step_id="user",
+                    menu_options=["finish", "endpoints"],
                 )
-                if devices is not None:
-                    return self.async_create_entry(
-                        title=(
-                            f"Sirius Rangehood ({len(devices)} device"
-                            f"{'s' if len(devices) > 1 else ''})"
-                        ),
-                        data=user_input,
-                    )
 
         return self.async_show_form(
             step_id="user",
@@ -125,9 +115,27 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_reauth(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Re-authenticate with new credentials after a token rejection."""
-        entry = self._get_reauth_entry()
+    async def async_step_finish(
+        self, _: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Create the config entry with default endpoints."""
+        data = {
+            **self._user_input,
+            CONF_SIRIUS_ENDPOINT: DEFAULT_SIRIUS_ENDPOINT,
+            CONF_SIRIUS_MQTTS_ENDPOINT: DEFAULT_SIRIUS_MQTTS_ENDPOINT,
+        }
+        return self.async_create_entry(
+            title=(
+                f"Sirius Rangehood ({len(self._devices)} device"
+                f"{'s' if len(self._devices) > 1 else ''})"
+            ),
+            data=data,
+        )
+
+    async def async_step_endpoints(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle optional custom endpoint configuration."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -138,42 +146,67 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
             if url_error:
                 errors["base"] = url_error
             else:
-                devices = await _try_discover_devices(
-                    self.hass, user_input, errors
+                data = {
+                    **self._user_input,
+                    CONF_SIRIUS_ENDPOINT: user_input[CONF_SIRIUS_ENDPOINT],
+                    CONF_SIRIUS_MQTTS_ENDPOINT: user_input[CONF_SIRIUS_MQTTS_ENDPOINT],
+                }
+                return self.async_create_entry(
+                    title=(
+                        f"Sirius Rangehood ({len(self._devices)} device"
+                        f"{'s' if len(self._devices) > 1 else ''})"
+                    ),
+                    data=data,
                 )
-                if devices is not None:
-                    _LOGGER.info("Sirius reauth succeeded, %d device(s)", len(devices))
-                    return self.async_update_reload_and_abort(
-                        entry,
-                        data={
-                            **entry.data,
-                            CONF_SIRIUS_ENDPOINT: user_input[CONF_SIRIUS_ENDPOINT],
-                            CONF_SIRIUS_MQTTS_ENDPOINT: user_input[CONF_SIRIUS_MQTTS_ENDPOINT],
-                            CONF_USERNAME: user_input[CONF_USERNAME],
-                            CONF_PASSWORD: user_input[CONF_PASSWORD],
-                            CONF_INSECURE_TLS: user_input.get(CONF_INSECURE_TLS, False),
-                        },
-                    )
+
+        return self.async_show_form(
+            step_id="endpoints",
+            data_schema=STEP_ENDPOINTS_SCHEMA,
+            errors=errors,
+        )
+
+    async def async_step_reauth(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Re-authenticate with new credentials after a token rejection."""
+        entry = self._get_reauth_entry()
+        errors: dict[str, str] = {}
+        current_endpoint = entry.data.get(CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT)
+        current_mqtts = entry.data.get(CONF_SIRIUS_MQTTS_ENDPOINT, DEFAULT_SIRIUS_MQTTS_ENDPOINT)
+        current_insecure = entry.data.get(CONF_INSECURE_TLS, False)
+
+        if user_input is not None:
+            devices = await _try_discover_devices(
+                self.hass, user_input, errors,
+                sirius_endpoint=current_endpoint,
+                mqtts_endpoint=current_mqtts,
+            )
+            if devices is not None:
+                _LOGGER.info("Sirius reauth succeeded, %d device(s)", len(devices))
+                return self.async_update_reload_and_abort(
+                    entry,
+                    data={
+                        **entry.data,
+                        CONF_USERNAME: user_input[CONF_USERNAME],
+                        CONF_PASSWORD: user_input[CONF_PASSWORD],
+                        CONF_INSECURE_TLS: user_input.get(CONF_INSECURE_TLS, current_insecure),
+                    },
+                )
         else:
             user_input = {
-                CONF_SIRIUS_ENDPOINT: entry.data.get(CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT),
-                CONF_SIRIUS_MQTTS_ENDPOINT: entry.data.get(CONF_SIRIUS_MQTTS_ENDPOINT, DEFAULT_SIRIUS_MQTTS_ENDPOINT),
                 CONF_USERNAME: entry.data.get(CONF_USERNAME, ""),
                 CONF_PASSWORD: "",
+                CONF_INSECURE_TLS: current_insecure,
             }
 
         schema = vol.Schema(
             {
-                vol.Required(CONF_SIRIUS_ENDPOINT, default=user_input[CONF_SIRIUS_ENDPOINT]): str,
-                vol.Required(CONF_SIRIUS_MQTTS_ENDPOINT, default=user_input[CONF_SIRIUS_MQTTS_ENDPOINT]): str,
                 vol.Required(CONF_USERNAME, default=user_input[CONF_USERNAME]): str,
                 vol.Required(CONF_PASSWORD): str,
-                vol.Optional(CONF_INSECURE_TLS, default=entry.data.get(CONF_INSECURE_TLS, False)): bool,
+                vol.Optional(CONF_INSECURE_TLS, default=user_input[CONF_INSECURE_TLS]): bool,
             }
         )
         return self.async_show_form(
             step_id="reauth",
             data_schema=schema,
             errors=errors,
-            description_placeholders={"endpoint": user_input[CONF_SIRIUS_ENDPOINT]},
+            description_placeholders={"endpoint": current_endpoint},
         )

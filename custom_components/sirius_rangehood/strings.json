@@ -3,23 +3,32 @@
     "step": {
       "user": {
         "data": {
-          "sirius_endpoint": "Sirius HTTPS Endpoint",
-          "sirius_mqtts_endpoint": "Sirius MQTTS Endpoint",
           "username": "Email",
           "password": "Password",
           "insecure_tls": "Disable TLS certificate validation"
         },
         "description": "Enter your Sirius rangehood cloud credentials."
       },
-      "reauth": {
+      "endpoints": {
         "data": {
           "sirius_endpoint": "Sirius HTTPS Endpoint",
-          "sirius_mqtts_endpoint": "Sirius MQTTS Endpoint",
+          "sirius_mqtts_endpoint": "Sirius MQTTS Endpoint"
+        },
+        "description": "Override the default server endpoints (advanced)."
+      },
+      "reauth": {
+        "data": {
           "username": "Email",
           "password": "Password",
           "insecure_tls": "Disable TLS certificate validation"
         },
-        "description": "Update your credentials for {endpoint}. The password field is required for reauthentication."
+        "description": "Update your credentials for {endpoint}."
+      }
+    },
+    "menu": {
+      "user": {
+        "finish": "Finish setup",
+        "endpoints": "Configure custom endpoints"
       }
     },
     "error": {
@@ -30,7 +39,7 @@
       "invalid_mqtts_url": "The MQTTS endpoint must start with mqtts://"
     },
     "abort": {
-      "already_configured": "This Sirius endpoint is already configured."
+      "already_configured": "This account is already configured."
     }
   },
   "entity": {
@@ -71,14 +80,8 @@
       "firmware_version": {
         "name": "Firmware Version"
       },
-      "filter_worn": {
-        "name": "Filter Worn"
-      },
-      "boost_value": {
-        "name": "Boost Duration"
-      },
-      "timer_value": {
-        "name": "Timer Duration"
+      "firmware_code": {
+        "name": "Firmware Code"
       },
       "device_ref": {
         "name": "Device Ref"
@@ -88,9 +91,6 @@
       },
       "device_class": {
         "name": "Device Class"
-      },
-      "firmware_code": {
-        "name": "Firmware Code"
       },
       "secure_id": {
         "name": "Secure ID"
