@@ -14,12 +14,22 @@ import aiohttp
 
 from homeassistant.helpers.storage import Store
 
-from .const import API_DEVICES, API_LOGIN, API_SET_VALUE, API_TIMEOUT, PROP_FW_VERSION
+from .const import API_DEVICES, API_LOGIN, API_SET_VALUE, API_TIMEOUT, PROP_FW_VERSION, VERSION
+
+_USER_AGENT = f"HomeAssistant-CustomIntegration-spitsw/{VERSION}"
 
 _LOGGER = logging.getLogger(__name__)
 
 _MAX_RETRIES = 3
 _RETRY_BASE_DELAY = 2.0  # seconds
+
+
+def _auth_headers(token: str) -> dict[str, str]:
+    """Return standard headers for Sirius API requests."""
+    return {
+        "Authorization": f"Bearer {token}",
+        "User-Agent": _USER_AGENT,
+    }
 
 _T = TypeVar("_T")
 
@@ -102,7 +112,7 @@ class SiriusHub:
         }
         try:
             async with await _run_with_retry(
-                lambda: self._session.post(url, json=payload, timeout=API_TIMEOUT),
+                lambda: self._session.post(url, json=payload, headers={"User-Agent": _USER_AGENT}, timeout=API_TIMEOUT),
                 retries=_MAX_RETRIES if retry else 1,
             ) as resp:
                 data = await resp.json()
@@ -133,7 +143,7 @@ class SiriusHub:
         """
         token = await self.async_ensure_token(retry=retry)
         url = f"{self._sirius_endpoint}{API_DEVICES}"
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = _auth_headers(token)
         http_call = lambda: self._session.get(url, headers=headers, timeout=API_TIMEOUT)
         try:
             async with (
@@ -230,7 +240,7 @@ class SiriusHub:
         """Low-level POST to /devices/{id}/set_value."""
         token = await self.async_ensure_token()
         url = f"{self._sirius_endpoint}{API_SET_VALUE.format(device_id=device_id)}"
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = _auth_headers(token)
         try:
             async with await _run_with_retry(
                 lambda: self._session.post(

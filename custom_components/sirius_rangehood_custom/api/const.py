@@ -1,5 +1,7 @@
 """Constants for the Sirius Rangehood API layer."""
 
+VERSION = "1.0.0"
+
 # API endpoints
 API_LOGIN = "/users/login"
 API_DEVICES = "/devices/"
