@@ -7,17 +7,18 @@ from typing import Any
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .api import PROP_FW_VERSION
+from .api import PROP_DEVICE_NAME, PROP_FW_VERSION
 from .const import DOMAIN
 
 
 def sirius_device_info(device_id: str, device: dict[str, Any]) -> DeviceInfo:
     """Build a DeviceInfo dict for a Sirius device."""
+    model = device.get(PROP_DEVICE_NAME) or device.get("description") or "Rangehood"
     return DeviceInfo(
         identifiers={(DOMAIN, device_id)},
         name=device.get("name", f"Sirius Rangehood {device_id}"),
         manufacturer="Sirius",
-        model=device.get("description", "Rangehood"),
+        model=model,
         sw_version=device.get(PROP_FW_VERSION),
     )
 
