@@ -37,16 +37,14 @@
     "switch": {
       "bi_power": {
         "name": "Bi-Power"
+      },
+      "timer_active": {
+        "name": "Timer Active"
       }
     },
     "number": {
       "timer_duration": {
         "name": "Timer Duration"
-      }
-    },
-    "binary_sensor": {
-      "timer_active": {
-        "name": "Timer Active"
       }
     },
     "sensor": {

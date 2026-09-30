@@ -11,9 +11,10 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .api import CAP_BI_POWER_ENABLED, CAP_POWER
+from .api import CAP_BI_POWER_ENABLED, CAP_POWER, CAP_TIMER_ACTIVE, CAP_TIMER_ENABLE
 from .api import SiriusAuthError
 from .const import DOMAIN
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -32,6 +33,10 @@ async def async_setup_entry(
         if CAP_BI_POWER_ENABLED in device.get("_limits", {}):
             entities.append(
                 SiriusRangehoodBiPowerSwitch(coordinator, did, device, entry)
+            )
+        if CAP_TIMER_ENABLE in device.get("_limits", {}):
+            entities.append(
+                SiriusRangehoodTimerSwitch(coordinator, did, device, entry)
             )
 
     async_add_entities(entities)
@@ -146,6 +151,63 @@ class SiriusRangehoodBiPowerSwitch(CoordinatorEntity, SwitchEntity):
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disable bi-power mode."""
         await self._async_send_command([{"id": CAP_BI_POWER_ENABLED, "value": 0.0}])
+
+    async def _async_send_command(self, params: list[dict[str, Any]]) -> None:
+        """Send a setValue command via the hub."""
+        data = self.hass.data[DOMAIN][self._entry_id]
+        hub = data["hub"]
+        try:
+            await hub.async_send_command(self._device_id, params)
+        except SiriusAuthError:
+            data.get("reauth", lambda: None)()
+
+
+class SiriusRangehoodTimerSwitch(CoordinatorEntity, SwitchEntity):
+    """Timer on/off — starts and stops the countdown timer.
+
+    Only created for devices whose capabilities include
+    ``device.timer.enable``.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "timer_active"
+
+    def __init__(
+        self,
+        coordinator,
+        device_id: str,
+        device: dict[str, Any],
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the timer switch."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._entry_id = entry.entry_id
+        self._attr_unique_id = f"{device_id}_timer_active"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, device_id)},
+        )
+
+    def _get_device_state(self) -> dict[str, Any]:
+        """Return latest device state."""
+        return self.coordinator.data.get(self._device_id, {})
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether the timer is running."""
+        state = self._get_device_state()
+        val = state.get(CAP_TIMER_ACTIVE)
+        if val is not None:
+            return bool(val)
+        return None
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Start the timer."""
+        await self._async_send_command([{"id": CAP_TIMER_ACTIVE, "value": 1.0}])
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Stop the timer."""
+        await self._async_send_command([{"id": CAP_TIMER_ACTIVE, "value": 0.0}])
 
     async def _async_send_command(self, params: list[dict[str, Any]]) -> None:
         """Send a setValue command via the hub."""

@@ -12,7 +12,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import (
-    CAP_TIMER_ENABLE,
     CAP_TIMER_MODIFIABLE,
     CAP_TIMER_VALUE,
     SiriusAuthError,
@@ -32,8 +31,6 @@ async def async_setup_entry(
 
     entities = []
     for device in devices:
-        if CAP_TIMER_ENABLE not in device.get("_limits", {}):
-            continue
         did = device.get("uid", str(device["id"]))
         entities.append(SiriusRangehoodTimer(coordinator, did, device, entry))
 
@@ -98,11 +95,9 @@ class SiriusRangehoodTimer(CoordinatorEntity, NumberEntity):
 
     @property
     def available(self) -> bool:
-        """Entity is available when the timer is both enabled and modifiable."""
+        """Entity is available when the timer is modifiable."""
         state = self._get_device_state()
-        return bool(state.get(CAP_TIMER_ENABLE, False)) and bool(
-            state.get(CAP_TIMER_MODIFIABLE, False)
-        )
+        return bool(state.get(CAP_TIMER_MODIFIABLE, False))
 
     async def _async_send_command(self, params: list[dict[str, Any]]) -> None:
         """Send a setValue command via the hub."""
