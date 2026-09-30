@@ -11,7 +11,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .api import CAP_BI_POWER_ENABLED, CAP_POWER, CAP_TIMER_ACTIVE, CAP_TIMER_ENABLE
+from .api import CAP_BI_POWER_ENABLED, CAP_POWER, CAP_TIMER_ACTIVE, CAP_TIMER_ENABLE, CAP_TIMER_VALUE
 from .api import SiriusAuthError
 from .const import DOMAIN
 
