@@ -200,3 +200,10 @@ Detailed architecture and design decisions are documented in
 
 Protocol details (MQTT topics, HTTP endpoints, capability IDs) are
 documented in [PROTOCOL.md](/PROTOCOL.md).
+
+## Disclaimer
+
+This integration is a custom component and is not affiliated with,
+endorsed by, or supported by Sirius, P.G.A. S.R.L., or any of its
+affiliates. All product names, logos, and brands are property of
+their respective owners.
