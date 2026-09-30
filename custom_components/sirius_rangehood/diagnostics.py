@@ -56,20 +56,30 @@ async def async_get_config_entry_diagnostics(
 async def async_get_device_diagnostics(
     hass: HomeAssistant, entry: ConfigEntry, device: DeviceEntry,
 ) -> dict[str, Any]:
-    """Return diagnostics for a device entry.
+    """Return diagnostics for a specific device."""
+    data = hass.data[DOMAIN][entry.entry_id]
+    hub = data["hub"]
 
-    Delegates to the config-entry-level diagnostics since the component
-    stores all device state in a single coordinator.
-    """
-    return await async_get_config_entry_diagnostics(hass, entry)
+    device_info = None
+    for d in data["devices"]:
+        if {(DOMAIN, d.get("uid", str(d["id"])))} == device.identifiers:
+            device_info = {
+                "id": d["id"],
+                "uid": d.get("uid"),
+                "name": d.get("name"),
+                "model": d.get("description"),
+                "fw_version": d.get("property.device.fw.version"),
+                "capabilities": list(d.get("_limits", {})),
+            }
+            break
 
-
-async def async_get_device_diagnostics(
-    hass: HomeAssistant, entry: ConfigEntry, device: DeviceEntry,
-) -> dict[str, Any]:
-    """Return diagnostics for a device entry.
-
-    Delegates to the config-entry-level diagnostics since the component
-    stores all device state in a single coordinator.
-    """
-    return await async_get_config_entry_diagnostics(hass, entry)
+    return {
+        "entry_id": entry.entry_id,
+        "device": device_info,
+        "coordinator": {
+            "last_update_success": data["coordinator"].last_update_success,
+        },
+        "hub": {
+            "token_expiry": hub._token_expiry.isoformat() if hub._token_expiry else None,
+        },
+    }
