@@ -123,7 +123,9 @@ class SiriusMQTT:
         self._client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
         if self._insecure_tls:
             _LOGGER.warning("MQTT TLS verification disabled for %s:%d", self._host, self._port)
-            ctx = ssl.create_default_context()
+            ctx = await asyncio.get_event_loop().run_in_executor(
+                None, ssl.create_default_context
+            )
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
             self._client.tls_set_context(ctx)
