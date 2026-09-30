@@ -24,6 +24,7 @@ from .api import (
     LIGHT_BRIGHTNESS_MIN,
     LIGHT_COLOR_TEMP_KELVIN_MAX,
     LIGHT_COLOR_TEMP_KELVIN_MIN,
+    PROP_FW_VERSION,
 )
 from .api import SiriusAuthError
 from .const import DOMAIN
@@ -71,6 +72,10 @@ class SiriusRangehoodLight(CoordinatorEntity, LightEntity):
         self._attr_name = None
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device_id)},
+            name=device.get("name", f"Sirius Rangehood {device_id}"),
+            manufacturer="Sirius",
+            model=device.get("description", "Rangehood"),
+            sw_version=device.get(PROP_FW_VERSION),
         )
 
     def _get_device_state(self) -> dict[str, Any]:

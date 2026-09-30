@@ -11,7 +11,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .api import CAP_FILTER_WORN
+from .api import CAP_FILTER_WORN, PROP_FW_VERSION
 from .const import DOMAIN
 
 
@@ -53,6 +53,10 @@ class SiriusRangehoodFilterWorn(CoordinatorEntity, BinarySensorEntity):
         self._attr_unique_id = f"{device_id}_filter_worn"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device_id)},
+            name=device.get("name", f"Sirius Rangehood {device_id}"),
+            manufacturer="Sirius",
+            model=device.get("description", "Rangehood"),
+            sw_version=device.get(PROP_FW_VERSION),
         )
 
     def _get_device_state(self) -> dict[str, Any]:

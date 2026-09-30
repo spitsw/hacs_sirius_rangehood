@@ -161,6 +161,10 @@ class SiriusRangehoodSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{device_id}_{description.key}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device_id)},
+            name=device.get("name", f"Sirius Rangehood {device_id}"),
+            manufacturer="Sirius",
+            model=device.get("description", "Rangehood"),
+            sw_version=device.get(PROP_FW_VERSION),
         )
 
     def _get_device_state(self) -> dict[str, Any]:
@@ -200,6 +204,10 @@ class SiriusRangehoodFilterCountdown(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{device_id}_{CAP_FILTER_VALUE}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device_id)},
+            name=device.get("name", f"Sirius Rangehood {device_id}"),
+            manufacturer="Sirius",
+            model=device.get("description", "Rangehood"),
+            sw_version=device.get(PROP_FW_VERSION),
         )
 
     def _get_device_state(self) -> dict[str, Any]:
@@ -241,6 +249,10 @@ class SiriusRangehoodTimerOffTime(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{device_id}_timer_off"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device_id)},
+            name=device.get("name", f"Sirius Rangehood {device_id}"),
+            manufacturer="Sirius",
+            model=device.get("description", "Rangehood"),
+            sw_version=device.get(PROP_FW_VERSION),
         )
 
     def _get_device_state(self) -> dict[str, Any]:

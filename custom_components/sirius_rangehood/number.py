@@ -15,6 +15,7 @@ from .api import (
     CAP_TIMER_ACTIVE,
     CAP_TIMER_MODIFIABLE,
     CAP_TIMER_VALUE,
+    PROP_FW_VERSION,
     SiriusAuthError,
 )
 from .const import DOMAIN
@@ -64,6 +65,10 @@ class SiriusRangehoodTimer(CoordinatorEntity, NumberEntity):
         self._attr_unique_id = f"{device_id}_timer"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device_id)},
+            name=device.get("name", f"Sirius Rangehood {device_id}"),
+            manufacturer="Sirius",
+            model=device.get("description", "Rangehood"),
+            sw_version=device.get(PROP_FW_VERSION),
         )
 
         limits = device.get("_limits", {}).get(CAP_TIMER_VALUE, {})

@@ -28,8 +28,8 @@ from .api import SiriusMQTT
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [
-    Platform.BINARY_SENSOR,
     Platform.FAN,
+    Platform.BINARY_SENSOR,
     Platform.LIGHT,
     Platform.SWITCH,
     Platform.SENSOR,
