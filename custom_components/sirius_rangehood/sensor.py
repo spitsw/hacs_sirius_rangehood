@@ -16,7 +16,6 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .api import (
     CAP_BOOST_VALUE,
     CAP_FILTER_VALUE,
-    CAP_FILTER_WORN,
     CAP_TIMER_ACTIVE,
     CAP_TIMER_ENABLE,
     CAP_TIMER_VALUE,
@@ -60,13 +59,6 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         translation_key="firmware_version",
         name="Firmware Version",
         icon="mdi:chip",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=CAP_FILTER_WORN,
-        translation_key="filter_worn",
-        name="Filter Worn",
-        icon="mdi:air-filter",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
