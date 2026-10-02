@@ -60,17 +60,20 @@ Home Assistant `custom_components/` directory and restart.
 
 1. **Settings → Devices & Services → Add Integration**.
 2. Search for `Sirius Rangehood` and select it.
-3. Enter your **Sirius cloud email** and **password**.
-4. If your credentials are correct, you'll see a menu:
-   - **Finish setup** — uses the default Sirius server.
-   - **Configure custom endpoints** — only needed for custom servers or
-     to disable TLS certificate verification.
-5. Choose **Finish setup** unless you need custom settings.
+3. Choose an option:
+   - **Log in to the Sirius cloud** (recommended) — uses the default server.
+   - **Configure custom endpoints (advanced)** — only for a non-standard
+     server, or to disable TLS certificate verification.
+4. Enter your **Sirius cloud email** and **password**. If you chose custom
+   endpoints, your credentials are validated against them.
 
 ### Re-configuration
 
 If your credentials change or you need to update endpoints:
 - Go to **Settings → Devices & Services → Sirius Rangehood → Configure**.
+- You'll be asked to **Log in** or **Change endpoints**; changing endpoints
+  never requires a successful login, so a broken server URL can always be
+  corrected.
 
 ---
 

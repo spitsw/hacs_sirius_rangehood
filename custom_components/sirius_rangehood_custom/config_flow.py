@@ -101,6 +101,22 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
             return self._get_reauth_entry()
         return None
 
+    def _seed_from_entry(self, entry: ConfigEntry) -> None:
+        """Pre-fill credentials and endpoint settings from an existing entry."""
+        self._user_input = {
+            CONF_USERNAME: entry.data.get(CONF_USERNAME, ""),
+            CONF_PASSWORD: entry.data.get(CONF_PASSWORD, ""),
+        }
+        self._config = {
+            CONF_SIRIUS_ENDPOINT: entry.data.get(
+                CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT
+            ),
+            CONF_SIRIUS_MQTTS_ENDPOINT: entry.data.get(
+                CONF_SIRIUS_MQTTS_ENDPOINT, DEFAULT_SIRIUS_MQTTS_ENDPOINT
+            ),
+            CONF_INSECURE_TLS: entry.data.get(CONF_INSECURE_TLS, False),
+        }
+
     def _async_save_entry(self) -> ConfigFlowResult:
         """Create a new entry, or update the existing one, with current settings."""
         data = {**self._user_input, **self._config}
@@ -119,63 +135,29 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle the initial or reconfigure step: credentials only."""
-        errors: dict[str, str] = {}
+        """Entry point: log in to the default cloud, or configure endpoints."""
         entry = self._existing_entry()
-
-        prefill: dict[str, Any] = {}
-        if user_input is None and entry is not None:
-            prefill = {CONF_USERNAME: entry.data.get(CONF_USERNAME, "")}
-
-        schema = vol.Schema(
-            {
-                vol.Required(
-                    CONF_USERNAME, default=prefill.get(CONF_USERNAME, "")
-                ): str,
-                vol.Required(CONF_PASSWORD): str,
+        self._devices = []
+        if entry is not None:
+            self._seed_from_entry(entry)
+        else:
+            self._user_input = {}
+            self._config = {
+                CONF_SIRIUS_ENDPOINT: DEFAULT_SIRIUS_ENDPOINT,
+                CONF_SIRIUS_MQTTS_ENDPOINT: DEFAULT_SIRIUS_MQTTS_ENDPOINT,
+                CONF_INSECURE_TLS: False,
             }
-        )
 
-        if user_input is not None:
-            endpoint = (
-                entry.data.get(CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT)
-                if entry
-                else DEFAULT_SIRIUS_ENDPOINT
-            )
-            mqtts_endpoint = (
-                entry.data.get(
-                    CONF_SIRIUS_MQTTS_ENDPOINT, DEFAULT_SIRIUS_MQTTS_ENDPOINT
-                )
-                if entry
-                else DEFAULT_SIRIUS_MQTTS_ENDPOINT
-            )
-            insecure_tls = entry.data.get(CONF_INSECURE_TLS, False) if entry else False
+        # Reauthentication is credentials-only; endpoints are fixed via Configure.
+        if self.source == "reauth":
+            return await self.async_step_credentials(user_input)
 
-            devices = await _try_discover_devices(
-                self.hass,
-                user_input,
-                errors,
-                sirius_endpoint=endpoint,
-                insecure_tls=insecure_tls,
-            )
-            if devices is not None:
-                self._user_input = user_input
-                self._config = {
-                    CONF_SIRIUS_ENDPOINT: endpoint,
-                    CONF_SIRIUS_MQTTS_ENDPOINT: mqtts_endpoint,
-                    CONF_INSECURE_TLS: insecure_tls,
-                }
-                self._devices = devices
-                if entry is None:
-                    self._async_abort_entries_match(
-                        {CONF_USERNAME: user_input[CONF_USERNAME]}
-                    )
-                return await self.async_step_menu()
-
-        return self.async_show_form(
+        return self.async_show_menu(
             step_id="user",
-            data_schema=schema,
-            errors=errors,
+            menu_options={
+                "credentials": "Log in to the Sirius cloud",
+                "endpoints": "Configure custom endpoints (advanced)",
+            },
         )
 
     async def async_step_reauth(
@@ -187,34 +169,51 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Reconfigure an existing entry."""
+        """Reconfigure an existing entry (menu-first so endpoints are reachable)."""
         return await self.async_step_user(user_input)
 
-    async def async_step_menu(
-        self, _: dict[str, Any] | None = None
+    async def async_step_credentials(
+        self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Show menu: finish with current settings or change endpoints."""
-        is_reconf = self.source == "reconfigure"
-        return self.async_show_menu(
-            step_id="menu",
-            menu_options={
-                "finish": "Keep current endpoints" if is_reconf else "Finish setup",
-                "endpoints": "Change endpoints"
-                if is_reconf
-                else "Configure custom endpoints",
-            },
+        """Collect credentials and validate them against the chosen endpoint."""
+        errors: dict[str, str] = {}
+        entry = self._existing_entry()
+
+        prefill = self._user_input.get(CONF_USERNAME, "") if user_input is None else ""
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_USERNAME, default=prefill): str,
+                vol.Required(CONF_PASSWORD): str,
+            }
         )
 
-    async def async_step_finish(
-        self, _: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Save the entry, keeping the validated settings."""
-        return self._async_save_entry()
+        if user_input is not None:
+            devices = await _try_discover_devices(
+                self.hass,
+                user_input,
+                errors,
+                sirius_endpoint=self._config[CONF_SIRIUS_ENDPOINT],
+                insecure_tls=self._config[CONF_INSECURE_TLS],
+            )
+            if devices is not None:
+                self._user_input = user_input
+                self._devices = devices
+                if entry is None:
+                    self._async_abort_entries_match(
+                        {CONF_USERNAME: user_input[CONF_USERNAME]}
+                    )
+                return self._async_save_entry()
+
+        return self.async_show_form(
+            step_id="credentials",
+            data_schema=schema,
+            errors=errors,
+        )
 
     async def async_step_endpoints(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle optional custom endpoint configuration."""
+        """Configure custom server endpoints (advanced)."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -225,25 +224,33 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
             if url_error:
                 errors["base"] = url_error
             else:
-                endpoint = user_input[CONF_SIRIUS_ENDPOINT]
-                insecure_tls = user_input.get(CONF_INSECURE_TLS, False)
-                devices = await _try_discover_devices(
-                    self.hass,
-                    self._user_input,
-                    errors,
-                    sirius_endpoint=endpoint,
-                    insecure_tls=insecure_tls,
-                )
-                if devices is not None:
-                    self._devices = devices
-                    self._config = {
-                        CONF_SIRIUS_ENDPOINT: endpoint,
-                        CONF_SIRIUS_MQTTS_ENDPOINT: user_input[
-                            CONF_SIRIUS_MQTTS_ENDPOINT
-                        ],
-                        CONF_INSECURE_TLS: insecure_tls,
-                    }
+                self._config = {
+                    CONF_SIRIUS_ENDPOINT: user_input[CONF_SIRIUS_ENDPOINT],
+                    CONF_SIRIUS_MQTTS_ENDPOINT: user_input[CONF_SIRIUS_MQTTS_ENDPOINT],
+                    CONF_INSECURE_TLS: user_input.get(CONF_INSECURE_TLS, False),
+                }
+                if self._existing_entry() is not None:
+                    # Endpoint-only change: verify best-effort, but never block,
+                    # so a bad/unreachable URL can always be corrected.
+                    check: dict[str, str] = {}
+                    devices = await _try_discover_devices(
+                        self.hass,
+                        self._user_input,
+                        check,
+                        sirius_endpoint=self._config[CONF_SIRIUS_ENDPOINT],
+                        insecure_tls=self._config[CONF_INSECURE_TLS],
+                    )
+                    if devices is None:
+                        _LOGGER.warning(
+                            "Endpoint %s did not validate (%s); saving anyway",
+                            self._config[CONF_SIRIUS_ENDPOINT],
+                            check.get("base"),
+                        )
+                    else:
+                        self._devices = devices
                     return self._async_save_entry()
+                # Fresh setup: validate credentials against the chosen endpoint.
+                return await self.async_step_credentials()
 
         schema = self.add_suggested_values_to_schema(
             STEP_ENDPOINTS_SCHEMA, self._config

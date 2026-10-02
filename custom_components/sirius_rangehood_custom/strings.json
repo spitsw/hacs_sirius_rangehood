@@ -2,6 +2,9 @@
   "config": {
     "step": {
       "user": {
+        "description": "Log in to the Sirius cloud, or configure custom server endpoints if you use a non-standard server (advanced)."
+      },
+      "credentials": {
         "data": {
           "username": "Email",
           "password": "Password"
@@ -15,14 +18,6 @@
           "insecure_tls": "Disable TLS certificate validation"
         },
         "description": "Override the default server endpoints (advanced)."
-      },
-      "reauth": {
-        "data": {
-          "username": "Email",
-          "password": "Password",
-          "insecure_tls": "Disable TLS certificate validation"
-        },
-        "description": "Update your credentials for {endpoint}."
       }
     },
     "error": {
