@@ -27,18 +27,22 @@ The integration is split into two strict layers:
 .venv/bin/ruff check .
 .venv/bin/ruff format . --check
 
-# Tests (pytest is NOT in requirements*.txt; it is installed via a uv tool)
-pytest tests/sirius_rangehood_custom/          # 32 tests, ~0.05s
+# Tests (deps in requirements_dev.txt; needs a Python with build headers,
+# e.g. a uv-managed 3.14)
+pytest tests/                                  # 45 tests, ~1s
+
+# Type check (pyright needs the HA env to resolve imports)
+pyright --pythonpath <python-with-homeassistant>
 
 # Local HA dev instance (port 8124 -> container 8123)
 docker compose up
 ```
 
 CI (`.github/workflows/lint.yaml`) runs `python3 -m ruff check .` and
-`python3 -m ruff format . --check`. A second workflow
-(`validate.yaml`) runs Hassfest and HACS validation — it checks
-`manifest.json`, `strings.json`/translations, and file structure, so keep
-those consistent.
+`python3 -m ruff format . --check`; `.github/workflows/test.yaml` runs
+`python3 -m pytest tests/` and `pyright`. A third workflow (`validate.yaml`)
+runs Hassfest and HACS validation — it checks `manifest.json`,
+`strings.json`/translations, and file structure, so keep those consistent.
 
 ## Version control (Jujutsu)
 
@@ -141,12 +145,15 @@ and constructs entities from `(coordinator, did, device, entry)`.
   what CI runs. Tests are exempted from the test-hostile rules via
   `[lint.per-file-ignores]` (`S101`, `ANN`, `D`, `CPY001`, `PLR2004`,
   `SLF001`, ...). Keep both commands green when adding code.
-- **`tests/conftest.py` hardcodes `sys.path.insert(0, "/home/warren/dev")`.**
-  Tests only work from this exact checkout path.
-- **Tests do not run a real Home Assistant.** The root `conftest.py`
-  registers synthetic `MagicMock` modules for every `homeassistant.*`,
-  `voluptuous`, `aiohttp`, and `paho` import the component uses. A test that
-  needs a new HA symbol must add it to that mock list first.
+- **Tests use the real Home Assistant test harness.** `tests/conftest.py`
+  provides an autouse fixture enabling custom integrations, and the suite runs
+  under `pytest-homeassistant-custom-component` (the `hass` fixture is real HA).
+  The repo root is on `sys.path` via `pythonpath = .` in `pytest.ini`.
+- **Type checking is on (`pyright`, basic mode).** `pyrightconfig.json` scopes it
+  to `custom_components/` and sets `reportIncompatibleVariableOverride = "none"`
+  because HA's stubs type entity properties as `cached_property`, which
+  integrations override with `@property`. Run it with a Python that has
+  `homeassistant` installed: `pyright --pythonpath <that python>`.
 - **`_flatten_device` deliberately drops capability values.** The
   `capabilities[].value` fields are placeholder/default values, not live state,
   so only `_limits` (min/max) is kept. Live values arrive via MQTT. A test
@@ -163,10 +170,15 @@ and constructs entities from `(coordinator, did, device, entry)`.
 ## Tests
 
 - Location: `tests/sirius_rangehood_custom/` (mirrors the component path).
-- Run the whole suite with `pytest tests/sirius_rangehood_custom/`.
-- Existing coverage is unit-level: `test_hub.py` (`_flatten_device`,
-  `SiriusAuthError`), `test_mqtt.py` (`_on_message` parsing, topic device-id
-  extraction, `subscribe_device`, SSL context shape), `test_const.py`
-  (speed/percentage mapping bijection), `test_config_flow.py` (`_validate_urls`).
-- There is no coverage of `async_setup_entry` / coordinator wiring; those are
-  exercised only against the real HA dev instance via `docker compose`.
+- Run the whole suite with `pytest tests/`. Uses
+  `pytest-homeassistant-custom-component` (declared in `requirements_dev.txt`);
+  `pytest.ini` sets `asyncio_mode = auto` and `pythonpath = .`.
+- Coverage: `test_hub.py` (`_flatten_device`, token restore), `test_mqtt.py`
+  (payload parsing, topic extraction, connection callbacks), `test_const.py`
+  (speed/percentage mapping, manifest consistency), `test_config_flow.py`
+  (`_validate_urls` plus the user -> menu -> finish flow), `test_coordinator.py`
+  (`apply_mqtt_update`, MQTT availability/grace), `test_init.py`
+  (setup/unload via `MockConfigEntry`, with `SiriusHub`/`SiriusMQTT` faked).
+- The harness pulls in `homeassistant`, one of whose deps compiles a C
+  extension, so the test environment needs Python build headers (or a
+  uv-managed Python, which ships them).

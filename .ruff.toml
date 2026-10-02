@@ -20,6 +20,8 @@ ignore = [
 # fixtures over annotations/docstrings.
 "tests/**" = [
     "ANN", # no type annotations required in tests
+    "ARG001", # fixture dependencies are "unused" parameters
+    "ARG002", # fakes mirror the real signatures
     "ARG005", # unused lambda args are common in mock callbacks
     "CPY001", # tests are not distributed, so no copyright header
     "D", # no docstrings required in tests
@@ -27,6 +29,7 @@ ignore = [
     "FBT", # boolean positional args are common in mock assertions
     "INP001", # tests are not a package
     "PLR2004", # magic values are fine in assertions
+    "PT022", # HA fixtures conventionally use yield
     "S101", # tests assert
     "S105", # "password" literals appear in fixtures
     "SLF001", # tests exercise private members directly
