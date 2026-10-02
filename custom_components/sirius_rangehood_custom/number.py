@@ -81,6 +81,8 @@ class SiriusRangehoodTimer(SiriusEntity, NumberEntity):
     def available(self) -> bool:
         """Return True when the timer duration can be changed."""
         state = self._get_device_state()
-        return bool(state.get(CAP_TIMER_MODIFIABLE, False)) and not bool(
-            state.get(CAP_TIMER_ACTIVE, False)
+        return (
+            super().available
+            and bool(state.get(CAP_TIMER_MODIFIABLE, False))
+            and not bool(state.get(CAP_TIMER_ACTIVE, False))
         )

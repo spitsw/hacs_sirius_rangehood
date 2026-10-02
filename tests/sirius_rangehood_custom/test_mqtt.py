@@ -170,3 +170,34 @@ class TestMQTTSubscription:
 
         status_topic = "root/codermine/devices/device-1/status"
         client._client.subscribe.assert_called_once_with(status_topic, qos=1)
+
+
+class TestMQTTConnection:
+    """Verify connection-state changes reach the connection callback."""
+
+    def test_on_connect_reports_connected(self) -> None:
+        """A successful CONNACK should report connected."""
+        callback = MagicMock()
+        client = SiriusMQTT(
+            "mqtts://host:8883", "user", "pass", connection_callback=callback
+        )
+        client._on_connect(None, None, None, 0)
+        callback.assert_called_once_with(True)
+
+    def test_on_connect_failure_reports_disconnected(self) -> None:
+        """A non-zero CONNACK should report disconnected."""
+        callback = MagicMock()
+        client = SiriusMQTT(
+            "mqtts://host:8883", "user", "pass", connection_callback=callback
+        )
+        client._on_connect(None, None, None, 5)
+        callback.assert_called_once_with(False)
+
+    def test_on_disconnect_reports_disconnected(self) -> None:
+        """A disconnect should report disconnected."""
+        callback = MagicMock()
+        client = SiriusMQTT(
+            "mqtts://host:8883", "user", "pass", connection_callback=callback
+        )
+        client._on_disconnect(None, None, 1)
+        callback.assert_called_once_with(False)

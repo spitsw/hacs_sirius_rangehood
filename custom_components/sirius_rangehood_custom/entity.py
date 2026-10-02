@@ -37,6 +37,11 @@ class SiriusEntity(CoordinatorEntity):
 
     _attr_has_entity_name = True
 
+    @property
+    def available(self) -> bool:
+        """Return True when the coordinator is healthy and MQTT is usable."""
+        return super().available and self.coordinator.mqtt_available  # type: ignore[attr-defined]
+
     def _get_device_state(self) -> dict[str, Any]:
         """Return latest device state from the coordinator."""
         return self.coordinator.data.get(self._device_id, {})  # type: ignore[attr-defined]

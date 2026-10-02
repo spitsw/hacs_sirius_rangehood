@@ -93,5 +93,11 @@
         "name": "Secure ID"
       }
     }
+  },
+  "issues": {
+    "mqtt_unavailable": {
+      "title": "Sirius Rangehood MQTT connection lost",
+      "description": "Home Assistant cannot reach the Sirius MQTT broker, so live rangehood state is not being received. Check your network and that outbound port 8884 is allowed; the integration will reconnect automatically once the broker is reachable."
+    }
   }
 }

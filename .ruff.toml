@@ -24,6 +24,7 @@ ignore = [
     "CPY001", # tests are not distributed, so no copyright header
     "D", # no docstrings required in tests
     "ERA001", # commented-out code is used as explanatory context
+    "FBT", # boolean positional args are common in mock assertions
     "INP001", # tests are not a package
     "PLR2004", # magic values are fine in assertions
     "S101", # tests assert

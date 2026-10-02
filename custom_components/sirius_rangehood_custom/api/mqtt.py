@@ -16,6 +16,7 @@ import paho.mqtt.client as mqtt
 _LOGGER = logging.getLogger(__name__)
 
 StatusCallback = Callable[[str, dict[str, Any]], None]  # device_id, payload
+ConnectionCallback = Callable[[bool], None]  # connected
 
 _TOPIC_ERRORS = (ValueError, IndexError)
 _JSON_ERRORS = (json.JSONDecodeError, UnicodeDecodeError)
@@ -27,12 +28,13 @@ class SiriusMQTT:
     _DEFAULT_PORT = 8884
     _KEEPALIVE = 60
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         mqtts_endpoint: str,
         username: str,
         password: str,
         status_callback: StatusCallback | None = None,
+        connection_callback: ConnectionCallback | None = None,
         *,
         insecure_tls: bool = False,
     ) -> None:
@@ -40,6 +42,7 @@ class SiriusMQTT:
         self._username = username
         self._password = password
         self._status_callback = status_callback
+        self._connection_callback = connection_callback
         self._insecure_tls = insecure_tls
         self._client: mqtt.Client | None = None
         self._subscribed_devices: set[str] = set()
@@ -70,8 +73,12 @@ class SiriusMQTT:
             _LOGGER.info("MQTT connected to %s", self._host)
             for device_id in self._subscribed_devices:
                 self._subscribe_device(device_id)
+            if self._connection_callback:
+                self._connection_callback(True)  # noqa: FBT003
         else:
             _LOGGER.error("MQTT connection failed (rc=%d)", rc)
+            if self._connection_callback:
+                self._connection_callback(False)  # noqa: FBT003
 
     def _on_disconnect(
         self,
@@ -81,6 +88,8 @@ class SiriusMQTT:
     ) -> None:
         """Handle disconnection."""
         _LOGGER.warning("MQTT disconnected (rc=%d), reconnecting...", rc)
+        if self._connection_callback:
+            self._connection_callback(False)  # noqa: FBT003
 
     def _on_message(
         self,

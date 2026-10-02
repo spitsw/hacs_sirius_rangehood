@@ -83,14 +83,19 @@ load-bearing points:
 - **Commands go out over HTTP, state comes in over MQTT.** `hub.async_send_command()`
   POSTs `setValue`; the device then pushes a `/status` message that updates
   state. Entities do not read the HTTP response for state.
+- **MQTT connectivity is surfaced.** The coordinator tracks `mqtt_connected`
+  (updated thread-safely from the paho callbacks; see below).
+  `SiriusEntity.available` reflects it with a 30 s grace, and a
+  `mqtt_unavailable` Repairs issue is raised when an outage outlasts the grace.
 - **The HTTP `getStatus` heartbeat is a functional no-op.** The coordinator's
   `update_method` fires every 300 s purely so a periodic update exists (keeps
   `last_update_success` true and the MQTT stream primed). It never returns
   state. Do not "optimize" it into the state source.
-- **Thread safety (ADR-2):** paho-mqtt invokes `_on_message` on a background
-  thread. `_on_mqtt_status` must **only** schedule work via
-  `hass.loop.call_soon_threadsafe(_apply_mqtt_update, ...)`. Never touch
-  `coordinator.data` / `device_states` from the paho thread.
+- **Thread safety (ADR-2):** paho-mqtt invokes `_on_message` / `_on_connect`
+  / `_on_disconnect` on a background thread. `_on_mqtt_status` and
+  `_on_mqtt_connection` must **only** schedule work via
+  `hass.loop.call_soon_threadsafe(coordinator.apply_mqtt_update | .set_mqtt_connected, ...)`.
+  Never touch `coordinator.data` / `device_states` from the paho thread.
 - **Device discovery is setup-time only (ADR-7).** `/devices/` is fetched once
   in `async_setup_entry`. New devices require the user to run **Configure**
   (reconfigure) — there is no polling-for-new-devices path.

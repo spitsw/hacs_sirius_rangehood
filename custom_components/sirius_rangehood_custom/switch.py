@@ -158,8 +158,10 @@ class SiriusRangehoodTimerSwitch(SiriusEntity, SwitchEntity):
     def available(self) -> bool:
         """Return True when the timer can be started or stopped."""
         state = self._get_device_state()
-        return bool(state.get(CAP_TIMER_ENABLE, False)) and bool(
-            state.get(CAP_TIMER_VALUE, 0)
+        return (
+            super().available
+            and bool(state.get(CAP_TIMER_ENABLE, False))
+            and bool(state.get(CAP_TIMER_VALUE, 0))
         )
 
     async def async_turn_on(self, **kwargs: Any) -> None:  # noqa: ARG002

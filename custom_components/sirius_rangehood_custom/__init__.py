@@ -91,11 +91,21 @@ async def async_setup_entry(
             coordinator.apply_mqtt_update, device_id, payload
         )
 
+    def _on_mqtt_connection(connected: bool) -> None:  # noqa: FBT001
+        """Forward broker connectivity changes to the HA event loop."""
+        hass.loop.call_soon_threadsafe(coordinator.set_mqtt_connected, connected)
+
     # Start MQTT
     mqtt = SiriusMQTT(
-        mqtts_endpoint, username, password, _on_mqtt_status, insecure_tls=insecure_tls
+        mqtts_endpoint,
+        username,
+        password,
+        _on_mqtt_status,
+        connection_callback=_on_mqtt_connection,
+        insecure_tls=insecure_tls,
     )
     mqtt_connected = await mqtt.async_start()
+    coordinator.set_mqtt_connected(mqtt_connected)
     if mqtt_connected:
         for device in devices:
             mqtt.subscribe_device(device.get("uid", str(device["id"])))
