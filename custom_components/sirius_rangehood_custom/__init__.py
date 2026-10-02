@@ -111,9 +111,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.debug("MQTT status for device %s: %s", device_id, payload)
             device_states[device_id].update(payload)
             coordinator.async_set_updated_data(dict(device_states))
-        else:
-            _LOGGER.debug("MQTT status for unknown uid %s, reloading", device_id)
-            hass.async_create_task(hass.config_entries.async_reload(entry_id))
 
     # Start MQTT
     mqtt = SiriusMQTT(
