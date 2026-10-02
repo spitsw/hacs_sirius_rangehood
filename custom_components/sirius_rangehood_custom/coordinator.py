@@ -140,9 +140,7 @@ class SiriusRangehoodCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
 
     def request_reauth(self) -> None:
         """Ask Home Assistant to start the re-authentication flow."""
-        self.hass.async_create_task(
-            self.hass.config_entries.async_start_reauth(self._entry.entry_id)
-        )
+        self._entry.async_start_reauth(self.hass)
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Heartbeat: send getStatus for all devices in parallel."""

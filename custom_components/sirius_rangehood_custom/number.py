@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.number import NumberEntity
+from homeassistant.components.number import NumberEntity, NumberMode
 
 from .api import (
     CAP_TIMER_ACTIVE,
@@ -44,7 +44,7 @@ class SiriusRangehoodTimer(SiriusEntity, NumberEntity):
 
     _attr_translation_key = "timer_duration"
     _attr_native_unit_of_measurement = "s"
-    _attr_mode = "auto"
+    _attr_mode = NumberMode.AUTO
 
     def __init__(
         self,

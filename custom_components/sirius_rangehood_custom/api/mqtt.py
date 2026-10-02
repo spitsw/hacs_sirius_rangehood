@@ -132,12 +132,15 @@ class SiriusMQTT:
 
     async def async_start(self) -> bool:
         """Connect to the MQTTS broker. Returns True if connection established."""
-        self._client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
-        self._client.username_pw_set(self._username, self._password)
-        self._client.on_connect = self._on_connect
-        self._client.on_disconnect = self._on_disconnect
-        self._client.on_message = self._on_message
-        self._client.reconnect_delay_set(min_delay=1, max_delay=120)
+        client = mqtt.Client(
+            mqtt.CallbackAPIVersion.VERSION1  # pyright: ignore[reportPrivateImportUsage]
+        )
+        client.username_pw_set(self._username, self._password)
+        client.on_connect = self._on_connect
+        client.on_disconnect = self._on_disconnect
+        client.on_message = self._on_message
+        client.reconnect_delay_set(min_delay=1, max_delay=120)
+        self._client = client
 
         try:
             # The Sirius broker's certificate has expired, so server
@@ -147,12 +150,12 @@ class SiriusMQTT:
                 ctx = ssl.create_default_context()
                 ctx.check_hostname = False
                 ctx.verify_mode = ssl.CERT_NONE
-                self._client.tls_set_context(ctx)
-                self._client.connect(self._host, self._port, keepalive=self._KEEPALIVE)
+                client.tls_set_context(ctx)
+                client.connect(self._host, self._port, keepalive=self._KEEPALIVE)
 
             _LOGGER.debug("Connecting to MQTT broker %s:%d...", self._host, self._port)
             await self._hass.async_add_executor_job(_connect)
-            self._client.loop_start()
+            client.loop_start()
             # Synchronous connect() already handled CONNACK, so _on_connect won't
             # fire again. Subscribe upfront.
             for device_id in self._subscribed_devices:

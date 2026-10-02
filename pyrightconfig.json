@@ -1,0 +1,5 @@
+{
+  "include": ["custom_components"],
+  "typeCheckingMode": "basic",
+  "reportIncompatibleVariableOverride": "none"
+}

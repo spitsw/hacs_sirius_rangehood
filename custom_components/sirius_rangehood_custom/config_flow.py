@@ -4,10 +4,10 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow
+from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -27,7 +27,6 @@ from .const import (
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
-    from homeassistant.data_entry_flow import FlowResult
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -90,9 +89,9 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    _user_input: ClassVar[dict[str, Any]] = {}
-    _config: ClassVar[dict[str, Any]] = {}
-    _devices: ClassVar[list[dict[str, Any]]] = []
+    _user_input: dict[str, Any]
+    _config: dict[str, Any]
+    _devices: list[dict[str, Any]]
 
     def _existing_entry(self) -> ConfigEntry | None:
         """Return the entry being reconfigured or reauthenticated, if any."""
@@ -102,7 +101,7 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
             return self._get_reauth_entry()
         return None
 
-    def _async_save_entry(self) -> FlowResult:
+    def _async_save_entry(self) -> ConfigFlowResult:
         """Create a new entry, or update the existing one, with current settings."""
         data = {**self._user_input, **self._config}
         title = (
@@ -119,7 +118,7 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle the initial or reconfigure step: credentials only."""
         errors: dict[str, str] = {}
         entry = self._existing_entry()
@@ -181,17 +180,19 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_reauth(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Re-authenticate with new credentials after a token rejection."""
         return await self.async_step_user(user_input)
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Reconfigure an existing entry."""
         return await self.async_step_user(user_input)
 
-    async def async_step_menu(self, _: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_menu(
+        self, _: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         """Show menu: finish with current settings or change endpoints."""
         is_reconf = self.source == "reconfigure"
         return self.async_show_menu(
@@ -204,13 +205,15 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
             },
         )
 
-    async def async_step_finish(self, _: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_finish(
+        self, _: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         """Save the entry, keeping the validated settings."""
         return self._async_save_entry()
 
     async def async_step_endpoints(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle optional custom endpoint configuration."""
         errors: dict[str, str] = {}
 

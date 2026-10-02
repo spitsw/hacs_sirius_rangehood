@@ -38,6 +38,8 @@ _HTTP_UNAUTHORIZED = 401
 
 _NETWORK_ERRORS = (TimeoutError, aiohttp.ClientError)
 
+_CLIENT_TIMEOUT = aiohttp.ClientTimeout(total=API_TIMEOUT)
+
 
 def _auth_headers(token: str) -> dict[str, str]:
     """Return standard headers for Sirius API requests."""
@@ -146,7 +148,7 @@ class SiriusHub:
                     url,
                     json=payload,
                     headers={"User-Agent": _USER_AGENT},
-                    timeout=API_TIMEOUT,
+                    timeout=_CLIENT_TIMEOUT,
                 ),
                 retries=_MAX_RETRIES if retry else 1,
             ) as resp:
@@ -155,19 +157,20 @@ class SiriusHub:
                     _LOGGER.error("Login failed (HTTP %d)", resp.status)
                     msg = f"Login failed: {data}"
                     raise SiriusAuthError(msg)  # noqa: TRY301
-                self._token = data["JWT"]
+                token: str = data["JWT"]
+                self._token = token
                 self._token_expiry = datetime.now(UTC) + timedelta(
                     seconds=data.get("expires", 3600)
                 )
                 if self._store:
                     await self._store.async_save(
-                        {"token": self._token, "expiry": self._token_expiry.isoformat()}
+                        {"token": token, "expiry": self._token_expiry.isoformat()}
                     )
                 _LOGGER.info(
                     "Sirius auth token refreshed, expires at %s",
                     self._token_expiry.isoformat(),
                 )
-                return self._token
+                return token
         except SiriusAuthError:
             raise  # never retry a credential rejection
         except _NETWORK_ERRORS:
@@ -190,7 +193,7 @@ class SiriusHub:
         headers = _auth_headers(token)
 
         def http_call() -> Any:
-            return self._session.get(url, headers=headers, timeout=API_TIMEOUT)
+            return self._session.get(url, headers=headers, timeout=_CLIENT_TIMEOUT)
 
         try:
             async with await _run_with_retry(
@@ -301,7 +304,7 @@ class SiriusHub:
         try:
             async with await _run_with_retry(
                 lambda: self._session.post(
-                    url, json=payload, headers=headers, timeout=API_TIMEOUT
+                    url, json=payload, headers=headers, timeout=_CLIENT_TIMEOUT
                 )
             ) as resp:
                 if resp.status == _HTTP_UNAUTHORIZED:

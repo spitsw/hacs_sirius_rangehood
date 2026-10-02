@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_TEMP_KELVIN,
-    ColorMode,
+    ColorMode,  # pyright: ignore[reportPrivateImportUsage]
     LightEntity,
 )
 
@@ -52,7 +52,7 @@ class SiriusRangehoodLight(SiriusEntity, LightEntity):
     """Representation of a Sirius Rangehood light."""
 
     _attr_color_mode = ColorMode.COLOR_TEMP
-    _attr_supported_color_modes = frozenset({ColorMode.COLOR_TEMP})
+    _attr_supported_color_modes: set[ColorMode] = {ColorMode.COLOR_TEMP}  # noqa: RUF012
     _attr_min_color_temp_kelvin = LIGHT_COLOR_TEMP_KELVIN_MIN
     _attr_max_color_temp_kelvin = LIGHT_COLOR_TEMP_KELVIN_MAX
 
