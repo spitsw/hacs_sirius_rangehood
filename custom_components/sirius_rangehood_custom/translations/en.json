@@ -2,6 +2,9 @@
   "config": {
     "step": {
       "user": {
+        "description": "Log in to the Sirius cloud, or configure custom server endpoints if you use a non-standard server (advanced)."
+      },
+      "credentials": {
         "data": {
           "username": "Email",
           "password": "Password"
@@ -15,14 +18,6 @@
           "insecure_tls": "Disable TLS certificate validation"
         },
         "description": "Override the default server endpoints (advanced)."
-      },
-      "reauth": {
-        "data": {
-          "username": "Email",
-          "password": "Password",
-          "insecure_tls": "Disable TLS certificate validation"
-        },
-        "description": "Update your credentials for {endpoint}."
       }
     },
     "error": {
@@ -33,13 +28,18 @@
       "invalid_mqtts_url": "The MQTTS endpoint must start with mqtts://"
     },
     "abort": {
-      "already_configured": "This account is already configured."
+      "already_configured": "This account is already configured.",
+      "reconfigure_successful": "Configuration updated.",
+      "reauth_successful": "Re-authentication successful."
     }
   },
   "entity": {
     "switch": {
       "bi_power": {
         "name": "Bi-Power"
+      },
+      "power": {
+        "name": "Global Power"
       },
       "timer_active": {
         "name": "Timer Active"
@@ -89,6 +89,12 @@
       "secure_id": {
         "name": "Secure ID"
       }
+    }
+  },
+  "issues": {
+    "mqtt_unavailable": {
+      "title": "Sirius Rangehood MQTT connection lost",
+      "description": "Home Assistant cannot reach the Sirius MQTT broker, so live rangehood state is not being received. Check your network and that outbound port 8884 is allowed; the integration will reconnect automatically once the broker is reachable."
     }
   }
 }

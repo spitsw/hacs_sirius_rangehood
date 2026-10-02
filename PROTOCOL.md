@@ -202,18 +202,27 @@ integer.
 ## MQTT
 
 The MQTT broker is a separate endpoint from the REST API, provided as
-`mqtts://host:port`. Connections use TLS (MQTTS) with certificate
-verification — the certificate chain and hostname are validated, but
-**expired certificates are accepted** (the production server has a valid
-certificate that has passed its expiry date). The same account email and
-password are used for MQTT authentication.
+`mqtts://host:port`. It is **operated by the Sirius cloud server**, not by
+the rangehood. The client (Home Assistant) opens a single MQTT connection
+to this cloud broker. The rangehood itself does not expose an MQTT
+endpoint and is never connected to the client directly; it reports its
+state to the Sirius cloud, and the cloud publishes it to the per-device
+topics below.
+
+Connections use TLS (MQTTS), but **server certificate verification is
+disabled**: the production broker's certificate has passed its expiry date,
+so the client connects with `CERT_NONE` and no hostname check (see ADR-1).
+The same account email and password are used for MQTT authentication.
 
 ### Topic Structure
 
+The client only subscribes; it never publishes. Every message listed below
+is published by the **Sirius cloud broker** on the device's behalf.
+
 | Topic | Direction | Purpose |
 |-------|-----------|---------|
-| `root/codermine/devices/{uid}/status` | Device → Client | Live device state |
-| `root/codermine/devices/{uid}/response/{requestId}` | Device → Client | Command acknowledgement |
+| `root/codermine/devices/{uid}/status` | Cloud → Client | Live device state |
+| `root/codermine/devices/{uid}/response/{requestId}` | Cloud → Client | Command acknowledgement |
 
 The `{uid}` is the device's `uid` field from the device list
 (e.g. `PGA-DEVICE001`), not the numeric `id`.
@@ -244,14 +253,16 @@ The `{uid}` is the device's `uid` field from the device list
 }
 ```
 
-The device automatically publishes its full state to this topic:
-- After receiving a `getStatus` API command
+The Sirius cloud automatically publishes the device's full state to this
+topic:
+- After the device processes a `getStatus` API command
 - Automatically after any state change (e.g. user pressed a button on the
   rangehood, or a `setValue` API command was processed)
 
 ### Response Topic
 
-Acknowledgement that a command was received and processed by the device.
+Acknowledgement, published by the Sirius cloud, that a command was received
+and processed by the device.
 
 **Topic pattern:**
 
@@ -292,46 +303,31 @@ The `{requestId}` matches the `requestId` sent in the API command.
 ### Startup
 
 ```
-Client                    Sirius API                   Device (MQTT)
-  │                          │                            │
-  │──── POST /users/login ───│                            │
-  │◄──── { JWT, expires } ───│                            │
-  │                          │                            │
-  │──── GET /devices/ ───────│                            │
-  │◄── [{ id, uid, props, caps }] ────────               │
-  │                          │                            │
-  │──── POST /devices/{id}/set_value ── getStatus ────────│
-  │                          │                            │
-  │                          │    MQTT: response/{reqId}  │
-  │                          │◄──── {"status": 0} ──────  │
-  │                          │                            │
-  │                          │    MQTT: status            │
-  │                          │◄── {deviceId, values[]} ───│
+1. Client ── HTTPS POST /users/login ──► Sirius API ── { JWT, expires }
+2. Client ── HTTPS GET /devices/ ──────► Sirius API ── [{ id, uid, props, caps }]
+3. Client ── HTTPS POST /devices/{id}/set_value (getStatus) ──► Sirius API
+4. Device relays its state to the Sirius cloud, which publishes
+   devices/{uid}/status to the client over MQTT.
 ```
 
 ### Command (setValue)
 
 ```
-Client                    Sirius API                   Device (MQTT)
-  │                          │                            │
-  │──── POST /devices/{id}/set_value ── setValue ─────────│
-  │                          │                            │
-  │                          │    MQTT: response/{reqId}  │
-  │                          │◄──── {"status": 0} ──────  │
-  │                          │                            │
-  │                          │    MQTT: status (automatic)│
-  │                          │◄── {deviceId, values[]} ───│
+1. Client ── HTTPS POST /devices/{id}/set_value (setValue) ──► Sirius API
+2. Device processes the command, then relays its new state to the Sirius
+   cloud, which publishes devices/{uid}/status to the client over MQTT.
 ```
 
-After sending a `setValue` command, the device automatically publishes its
-updated state to the MQTT status topic. No explicit `getStatus` is needed
-after commands.
+After sending a `setValue` command, the device relays its updated state to
+the Sirius cloud, which publishes it to the MQTT status topic. No explicit
+`getStatus` is needed after commands.
 
 ### Heartbeat (periodic)
 
 Every 5 minutes the client sends `getStatus` via the API as a heartbeat.
-The device responds by pushing its current state via MQTT. This ensures
-the client stays synchronised even if an MQTT message was missed.
+The device relays its current state to the Sirius cloud, which pushes it
+via MQTT. This ensures the client stays synchronised even if an MQTT
+message was missed.
 
 ---
 

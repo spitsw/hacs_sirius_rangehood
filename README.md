@@ -23,12 +23,16 @@ choose **Configure custom endpoints** after logging in.
 | **Light** | Brightness and colour temperature (warm → cool) |
 | **Timer Duration** | Set countdown in seconds |
 | **Timer Active** | Start / stop the countdown |
-| **Boost Duration** | How long boost mode runs (in seconds) |
 | **Global Power** | Turn fan and light on/off together |
-| **Bi-Power** | Enable dual-power mode (if supported) |
+| **Bi-Power** | Enable extra airflow and powerful extraction (if supported) |
 
 **Sensors** show IP address, WiFi signal strength, firmware version,
 filter life, filter worn alert, and estimated turn-off time.
+
+Live values are pushed from the Sirius cloud over MQTT. If that connection
+drops, entities become **Unavailable** after about 30 seconds and a
+**Repairs** notification ("Sirius Rangehood MQTT connection lost") appears;
+both clear automatically once the broker is reachable again.
 
 ---
 
@@ -56,17 +60,20 @@ Home Assistant `custom_components/` directory and restart.
 
 1. **Settings → Devices & Services → Add Integration**.
 2. Search for `Sirius Rangehood` and select it.
-3. Enter your **Sirius cloud email** and **password**.
-4. If your credentials are correct, you'll see a menu:
-   - **Finish setup** — uses the default Sirius server.
-   - **Configure custom endpoints** — only needed for custom servers or
-     to disable TLS certificate verification.
-5. Choose **Finish setup** unless you need custom settings.
+3. Choose an option:
+   - **Log in to the Sirius cloud** (recommended) — uses the default server.
+   - **Configure custom endpoints (advanced)** — only for a non-standard
+     server, or to disable TLS certificate verification.
+4. Enter your **Sirius cloud email** and **password**. If you chose custom
+   endpoints, your credentials are validated against them.
 
 ### Re-configuration
 
 If your credentials change or you need to update endpoints:
 - Go to **Settings → Devices & Services → Sirius Rangehood → Configure**.
+- You'll be asked to **Log in** or **Change endpoints**; changing endpoints
+  never requires a successful login, so a broken server URL can always be
+  corrected.
 
 ---
 
@@ -77,10 +84,15 @@ If your credentials change or you need to update endpoints:
 | "Invalid authentication" | Check your password in the Sirius mobile app first |
 | "No devices found" | Login worked, but no rangehood is linked to your account |
 | Entities show "unknown" | Wait up to 30 seconds — the first status update arrives via MQTT |
+| Entities show "Unavailable" | The cloud MQTT broker is unreachable. Check **Settings → System → Repairs** and confirm outbound port 8884 is allowed; it reconnects automatically |
 | Entities don't update | Check HA logs for "MQTT" errors. Network or firewall may block port 8884 |
 | Re-auth prompt | Token expired — re-enter your password when prompted |
 
-To enable more detailed logs:
+### Debug logging
+
+Enable it from the UI: **Settings → Devices & Services → Sirius Rangehood →
+Enable debug logging** — the integration declares a `loggers` entry, so no YAML
+is required. To configure it in YAML instead:
 
 ```yaml
 logger:

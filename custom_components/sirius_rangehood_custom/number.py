@@ -1,36 +1,34 @@
+# Copyright (c) 2026 Warren Spits
 """Number platform for Sirius Rangehood timer control."""
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.number import NumberEntity
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.components.number import NumberEntity, NumberMode
 
 from .api import (
     CAP_TIMER_ACTIVE,
     CAP_TIMER_MODIFIABLE,
     CAP_TIMER_VALUE,
 )
-from .const import DOMAIN
-from .entity import SiriusEntity, sirius_device_info
+from .entity import SiriusEntity, iter_devices
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+    from .coordinator import SiriusRangehoodCoordinator
+    from .data import SiriusRangehoodConfigEntry
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
+    hass: HomeAssistant,  # noqa: ARG001
+    entry: SiriusRangehoodConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    data = hass.data[DOMAIN][entry.entry_id]
-    coordinator = data["coordinator"]
-    devices = data["devices"]
-
-    entities = []
-    for device in devices:
-        did = device.get("uid", str(device["id"]))
-        entities.append(SiriusRangehoodTimer(coordinator, did, device, entry))
+    """Set up the number platform."""
+    entities = [SiriusRangehoodTimer(c, did, d) for c, did, d in iter_devices(entry)]
     async_add_entities(entities)
 
 
@@ -39,20 +37,16 @@ class SiriusRangehoodTimer(SiriusEntity, NumberEntity):
 
     _attr_translation_key = "timer_duration"
     _attr_native_unit_of_measurement = "s"
-    _attr_mode = "auto"
+    _attr_mode = NumberMode.AUTO
 
     def __init__(
         self,
-        coordinator,
+        coordinator: SiriusRangehoodCoordinator,
         device_id: str,
         device: dict[str, Any],
-        entry: ConfigEntry,
     ) -> None:
-        super().__init__(coordinator)
-        self._device_id = device_id
-        self._entry_id = entry.entry_id
-        self._attr_unique_id = f"{device_id}_timer"
-        self._attr_device_info = sirius_device_info(device_id, device)
+        """Initialize the timer duration entity."""
+        super().__init__(coordinator, device_id, device, unique_suffix="timer")
 
         limits = device.get("_limits", {}).get(CAP_TIMER_VALUE, {})
         self._attr_native_min_value = limits.get("min", 0) if limits else 0
@@ -61,6 +55,7 @@ class SiriusRangehoodTimer(SiriusEntity, NumberEntity):
 
     @property
     def native_value(self) -> float | None:
+        """Return the configured timer duration in seconds."""
         state = self._get_device_state()
         val = state.get(CAP_TIMER_VALUE)
         if val is not None:
@@ -68,11 +63,15 @@ class SiriusRangehoodTimer(SiriusEntity, NumberEntity):
         return None
 
     async def async_set_native_value(self, value: float) -> None:
+        """Set the timer duration in seconds."""
         await self._async_send_command([{"id": CAP_TIMER_VALUE, "value": int(value)}])
 
     @property
     def available(self) -> bool:
+        """Return True when the timer duration can be changed."""
         state = self._get_device_state()
-        return bool(state.get(CAP_TIMER_MODIFIABLE, False)) and not bool(
-            state.get(CAP_TIMER_ACTIVE, False)
+        return (
+            super().available
+            and bool(state.get(CAP_TIMER_MODIFIABLE, False))
+            and not bool(state.get(CAP_TIMER_ACTIVE, False))
         )

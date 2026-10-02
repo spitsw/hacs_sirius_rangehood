@@ -9,20 +9,31 @@ Rangehood integration.
 
 **Status**: Accepted
 
-**Context**: The Sirius MQTTS broker presents a valid TLS certificate that
-has expired. Home Assistant's built-in `mqtt` integration does not expose a
-hook to customise certificate validation, so it would reject the connection.
+**Context**: HA's built-in `mqtt` integration is a single global broker
+configuration — only one MQTT connection can exist for the entire HA
+instance. The Sirius rangehood requires a separate MQTT connection to
+`mqtts://sirius.iotpga.it:8884` with its own credentials, subscriptions,
+and message parsing.
 
-**Decision**: Use the `paho-mqtt` library directly with a custom `ssl.SSLContext`
-whose `verify_callback` only skips the expiry check (`X509_V_ERR_CERT_HAS_EXPIRED`
-= errno 10). All other validation (chain of trust, hostname, issuer) still
-applies.
+HA's MQTT integration does support TLS with `tls_insecure: true` (which
+disables certificate hostname validation), so the expired certificate
+alone is not a blocker. However, adding a second MQTT broker via the
+global integration is not supported.
+
+**Decision**: Use the `paho-mqtt` library directly, managing the
+connection lifecycle (`connect`/`loop_start`/`loop_stop`) and TLS
+context independently of HA's infrastructure.
 
 **Consequences**:
-- No dependency on HA's MQTT integration — the component is self-contained.
-- Must manage its own connection lifecycle (`loop_start`/`loop_stop`).
-- If Sirius ever renews their certificate, the custom context will still work
-  (the callback returns `preverify_ok` for all non-expiry errors).
+- No dependency on HA's global MQTT integration — the component
+  works regardless of the user's existing MQTT setup.
+- Full control over TLS configuration: expired certificates, missing
+  root CAs, and the insecure-TLS fallback are all handled internally.
+- Must manage its own connection lifecycle and thread safety via
+  `call_soon_threadsafe`.
+- The `/status` topic subscription and `values[]` payload flattening
+  are handled directly rather than through HA's MQTT platform
+  configuration.
 
 ---
 
@@ -59,26 +70,30 @@ paho thread → _on_mqtt_status()
 
 **Status**: Accepted
 
-**Context**: Device state arrives from two paths — HTTP API polling and MQTT
-push messages. Entities need a unified, consistent view of device state
-without having to merge two sources themselves.
+**Context**: Device state arrives from two paths — MQTT push messages and
+a periodic HTTP `getStatus` call. Entities need a unified, consistent view
+of device state without having to merge two sources themselves.
 
 **Decision**: A `DataUpdateCoordinator` owns the authoritative
 `device_states` dict. Both data paths funnel into it:
-- **HTTP polling** (every 300 s): `async_update_data` sends `getStatus`
-  for each device. The device responds asynchronously via MQTT, so the
-  poll primarily serves as a heartbeat to keep MQTT flowing.
-- **MQTT push**: Parsed status payloads are merged into the coordinator
-  via the thread-safe bridge (ADR-2).
+
+- **MQTT push** (primary): Parsed status payloads are merged into the
+  coordinator via the thread-safe bridge (ADR-2).
+- **HTTP `getStatus`** (every 300 s): Sends a no-op status request for
+  each device. The device responds via MQTT if it chooses to, but the
+  actual state data always arrives through the MQTT push path. The HTTP
+  call exists because HA's `DataUpdateCoordinator` requires a periodic
+  `update_method` callback — without it, `last_update_success` would not
+  be set and `CoordinatorEntity` subclasses might show as unavailable.
 
 All entities read `coordinator.data.get(device_id)` and are automatically
-notified when data changes.
+notified when data changes via `async_set_updated_data`.
 
 **Consequences**:
 - Entities are simple — no per-entity polling or merge logic.
-- Single `async_set_updated_data` call per update notifies all entities.
-- Coordinator is also used for HA's built-in throttling, logging, and
-  error handling.
+- Single `async_set_updated_data` call per MQTT update notifies all entities.
+- HTTP `getStatus` is functionally a no-op that satisfies the coordinator
+  pattern; state data is never read from the HTTP response.
 
 ---
 
@@ -86,9 +101,9 @@ notified when data changes.
 
 **Status**: Accepted
 
-**Context**: The Sirius IoT platform exposes two channels — an HTTPS REST
-API and an MQTT broker. Commands (`setValue`) can be sent over either, but
-live status updates only arrive over MQTT.
+**Context**: The Sirius IoT platform exposes two channels: an HTTPS REST
+API for command execution and device discovery, and an MQTT broker for
+live status updates. Commands (`setValue`) can only be sent via HTTP.
 
 **Decision**:
 - **Commands** → HTTPS POST to `/devices/{id}/set_value`. The device
@@ -171,26 +186,29 @@ if remaining > 0:
 
 ---
 
-## ADR-7: Discovery via MQTT unknown-UID reload
+## ADR-7: Discovery via `/devices/` at setup time only
 
 **Status**: Accepted
 
-**Context**: Sirius devices can appear or disappear at any time (new
-rangehood paired, existing one unpaired). The component only discovers
-devices once, at setup time.
+**Context**: The `/devices/` API returns all devices registered to the
+account at setup time. Device discovery is a one-time operation.
 
-**Decision**: When an MQTT status message arrives for a UID that is not
-in the current `device_states` dict, reload the config entry so the new
-entities appear. No periodic `/devices/` poll is needed — with 1–3
-devices, discovery is rare, and MQTT is the primary channel for all
-device activity.
+**Decision**: Devices are discovered once during `async_setup_entry`
+via the `/devices/` API. No periodic polling is performed. MQTT
+subscriptions are created for each discovered device's specific topic
+(`.../devices/{uid}/status`), so messages from unknown devices are
+never received.
+
+If a new rangehood is paired to the account after initial setup, the
+user must reconfigure the integration (**Settings → Devices & Services
+→ Sirius Rangehood → Configure**) to trigger a fresh discovery.
 
 **Consequences**:
-- New devices are detected within seconds (when they first publish via
-  MQTT), not up to an hour later.
-- Config entry reload is heavyweight but negligible at 1–3 devices.
-- No mechanism yet to handle device removal — a removed device must be
-  manually deleted from HA.
+- New devices are not discovered automatically — reconfiguration is
+  required.
+- MQTT cannot be used for discovery because topics are device-specific
+  and subscription happens at setup time.
+- This is acceptable for 1–3 devices where pairing is rare.
 
 ---
 

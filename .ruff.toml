@@ -1,0 +1,46 @@
+# The contents of this file is based on https://github.com/home-assistant/core/blob/dev/pyproject.toml
+
+target-version = "py314"
+
+[lint]
+select = [
+    "ALL",
+]
+
+ignore = [
+    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
+    "D203", # no-blank-line-before-class (incompatible with formatter)
+    "D212", # multi-line-summary-first-line (incompatible with formatter)
+    "COM812", # incompatible with formatter
+    "ISC001", # incompatible with formatter
+]
+
+[lint.per-file-ignores]
+# Tests exercise private members directly, assert freely, and favour terse
+# fixtures over annotations/docstrings.
+"tests/**" = [
+    "ANN", # no type annotations required in tests
+    "ARG001", # fixture dependencies are "unused" parameters
+    "ARG002", # fakes mirror the real signatures
+    "ARG005", # unused lambda args are common in mock callbacks
+    "CPY001", # tests are not distributed, so no copyright header
+    "D", # no docstrings required in tests
+    "ERA001", # commented-out code is used as explanatory context
+    "FBT", # boolean positional args are common in mock assertions
+    "INP001", # tests are not a package
+    "PLR2004", # magic values are fine in assertions
+    "PT022", # HA fixtures conventionally use yield
+    "S101", # tests assert
+    "S105", # "password" literals appear in fixtures
+    "SLF001", # tests exercise private members directly
+    "TRY301", # raise-inside-try is fine in test helpers
+]
+
+[lint.flake8-pytest-style]
+fixture-parentheses = false
+
+[lint.pyupgrade]
+keep-runtime-typing = true
+
+[lint.mccabe]
+max-complexity = 25

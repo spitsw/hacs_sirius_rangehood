@@ -1,4 +1,6 @@
-"""Sirius Rangehood API client library.
+# Copyright (c) 2026 Warren Spits
+"""
+Sirius Rangehood API client library.
 
 This package contains all HTTP and MQTT code that communicates with the
 Sirius cloud server.  The HA layer imports what it needs from here and
@@ -7,7 +9,6 @@ never makes direct API calls.
 
 from .const import (
     CAP_BI_POWER_ENABLED,
-    CAP_BOOST_VALUE,
     CAP_FAN_SPEED,
     CAP_FILTER_VALUE,
     CAP_FILTER_WORN,
@@ -51,7 +52,6 @@ from .mqtt import SiriusMQTT
 __all__ = [
     "CAP_BI_POWER_ENABLED",
     # Constants
-    "CAP_BOOST_VALUE",
     "CAP_FAN_SPEED",
     "CAP_FILTER_VALUE",
     "CAP_FILTER_WORN",

@@ -1,15 +1,17 @@
+# Copyright (c) 2026 Warren Spits
 """Sensor platform for Sirius Rangehood diagnostics."""
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+)
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import (
     CAP_FILTER_VALUE,
@@ -26,104 +28,57 @@ from .api import (
     PROP_SECURE_ID,
     PROP_SSID,
 )
-from .const import DOMAIN
-from .entity import SiriusEntity, sirius_device_info
+from .entity import SiriusEntity, iter_devices
 
-SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+    from .coordinator import SiriusRangehoodCoordinator
+    from .data import SiriusRangehoodConfigEntry
+
+_DIAGNOSTIC_SENSORS: tuple[
+    tuple[str, str, str, SensorDeviceClass | None, str | None], ...
+] = (
+    (PROP_IP_ADDRESS, "ip_address", "mdi:ip-network", None, None),
+    (PROP_RSSI, "rssi", "mdi:wifi", SensorDeviceClass.SIGNAL_STRENGTH, "dBm"),
+    (PROP_SSID, "ssid", "mdi:wifi-settings", None, None),
+    (PROP_FW_VERSION, "firmware_version", "mdi:chip", None, None),
+    (PROP_DEVICE_REF, "device_ref", "mdi:tag-text", None, None),
+    (PROP_DEVICE_TYPE, "device_type", "mdi:chip", None, None),
+    (PROP_DEVICE_CLASS, "device_class", "mdi:shape", None, None),
+    (PROP_FW_CODE, "firmware_code", "mdi:counter", None, None),
+    (PROP_SECURE_ID, "secure_id", "mdi:shield-key", None, None),
+)
+
+SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = tuple(
     SensorEntityDescription(
-        key=PROP_IP_ADDRESS,
-        translation_key="ip_address",
-        name="IP Address",
-        icon="mdi:ip-network",
+        key=key,
+        translation_key=translation_key,
+        icon=icon,
+        device_class=device_class,
+        native_unit_of_measurement=unit,
         entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=PROP_RSSI,
-        translation_key="rssi",
-        name="RSSI",
-        icon="mdi:wifi",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=PROP_SSID,
-        translation_key="ssid",
-        name="SSID",
-        icon="mdi:wifi-settings",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=PROP_FW_VERSION,
-        translation_key="firmware_version",
-        name="Firmware Version",
-        icon="mdi:chip",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=CAP_TIMER_ACTIVE,
-        translation_key="timer_active",
-        name="Timer Active",
-        icon="mdi:clock-outline",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=PROP_DEVICE_REF,
-        translation_key="device_ref",
-        name="Device Ref",
-        icon="mdi:tag-text",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=PROP_DEVICE_TYPE,
-        translation_key="device_type",
-        name="Device Type",
-        icon="mdi:chip",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=PROP_DEVICE_CLASS,
-        translation_key="device_class",
-        name="Device Class",
-        icon="mdi:shape",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=PROP_FW_CODE,
-        translation_key="firmware_code",
-        name="Firmware Code",
-        icon="mdi:counter",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
-        key=PROP_SECURE_ID,
-        translation_key="secure_id",
-        name="Secure ID",
-        icon="mdi:shield-key",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
+    )
+    for key, translation_key, icon, device_class, unit in _DIAGNOSTIC_SENSORS
 )
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
+    hass: HomeAssistant,  # noqa: ARG001
+    entry: SiriusRangehoodConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    data = hass.data[DOMAIN][entry.entry_id]
-    coordinator = data["coordinator"]
-    devices = data["devices"]
-
+    """Set up the sensor platform."""
     entities = []
-    for device in devices:
-        did = device.get("uid", str(device["id"]))
-        for desc in SENSOR_DESCRIPTIONS:
-            entities.append(
-                SiriusRangehoodSensor(coordinator, did, device, entry, desc)
-            )
-        entities.append(SiriusRangehoodFilterCountdown(coordinator, did, device, entry))
+    for coordinator, did, device in iter_devices(entry):
+        entities.extend(
+            SiriusRangehoodSensor(coordinator, did, device, desc)
+            for desc in SENSOR_DESCRIPTIONS
+        )
+        entities.append(SiriusRangehoodFilterCountdown(coordinator, did, device))
         if CAP_TIMER_ENABLE in device.get("_limits", {}):
-            entities.append(
-                SiriusRangehoodTimerOffTime(coordinator, did, device, entry)
-            )
+            entities.append(SiriusRangehoodTimerOffTime(coordinator, did, device))
     async_add_entities(entities)
 
 
@@ -132,21 +87,18 @@ class SiriusRangehoodSensor(SiriusEntity, SensorEntity):
 
     def __init__(
         self,
-        coordinator,
+        coordinator: SiriusRangehoodCoordinator,
         device_id: str,
         device: dict[str, Any],
-        entry: ConfigEntry,
         description: SensorEntityDescription,
     ) -> None:
-        super().__init__(coordinator)
-        self._device_id = device_id
-        self._entry_id = entry.entry_id
+        """Initialize the diagnostic sensor."""
+        super().__init__(coordinator, device_id, device, unique_suffix=description.key)
         self.entity_description = description
-        self._attr_unique_id = f"{device_id}_{description.key}"
-        self._attr_device_info = sirius_device_info(device_id, device)
 
     @property
     def native_value(self) -> str | int | float | None:
+        """Return the raw device value for the described key."""
         return self._get_device_state().get(self.entity_description.key)
 
 
@@ -159,19 +111,16 @@ class SiriusRangehoodFilterCountdown(SiriusEntity, SensorEntity):
 
     def __init__(
         self,
-        coordinator,
+        coordinator: SiriusRangehoodCoordinator,
         device_id: str,
         device: dict[str, Any],
-        entry: ConfigEntry,
     ) -> None:
-        super().__init__(coordinator)
-        self._device_id = device_id
-        self._entry_id = entry.entry_id
-        self._attr_unique_id = f"{device_id}_{CAP_FILTER_VALUE}"
-        self._attr_device_info = sirius_device_info(device_id, device)
+        """Initialize the filter countdown sensor."""
+        super().__init__(coordinator, device_id, device, unique_suffix=CAP_FILTER_VALUE)
 
     @property
     def native_value(self) -> float | None:
+        """Return the remaining filter life in hours."""
         state = self._get_device_state()
         val = state.get(CAP_FILTER_VALUE)
         if val is not None:
@@ -183,26 +132,23 @@ class SiriusRangehoodTimerOffTime(SiriusEntity, SensorEntity):
     """Turn-off time for the countdown timer (timestamp for live countdown)."""
 
     _attr_translation_key = "timer_off_time"
-    _attr_device_class = "timestamp"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
 
     def __init__(
         self,
-        coordinator,
+        coordinator: SiriusRangehoodCoordinator,
         device_id: str,
         device: dict[str, Any],
-        entry: ConfigEntry,
     ) -> None:
-        super().__init__(coordinator)
-        self._device_id = device_id
-        self._entry_id = entry.entry_id
-        self._attr_unique_id = f"{device_id}_timer_off"
-        self._attr_device_info = sirius_device_info(device_id, device)
+        """Initialize the timer turn-off-time sensor."""
+        super().__init__(coordinator, device_id, device, unique_suffix="timer_off")
 
     @property
     def native_value(self) -> datetime | None:
+        """Return the moment the timer will turn the device off."""
         state = self._get_device_state()
         active = state.get(CAP_TIMER_ACTIVE)
         remaining = state.get(CAP_TIMER_VALUE)
         if active and remaining is not None:
-            return datetime.now(timezone.utc) + timedelta(seconds=float(remaining))
+            return datetime.now(UTC) + timedelta(seconds=float(remaining))
         return None

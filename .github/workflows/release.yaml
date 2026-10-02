@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - "main"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: "Semantic release"
+    runs-on: "ubuntu-latest"
+    concurrency:
+      group: "semantic-release"
+      cancel-in-progress: false
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.14"
+
+      - name: Install python-semantic-release
+        run: python3 -m pip install python-semantic-release
+
+      - name: Create the release
+        # python-semantic-release derives the next SemVer from Conventional
+        # Commit messages, bumps the version in pyproject.toml and
+        # manifest.json, commits, tags vX.Y.Z, and creates the GitHub Release.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: semantic-release -v version
