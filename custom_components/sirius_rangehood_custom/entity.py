@@ -11,6 +11,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import PROP_DEVICE_NAME, PROP_FW_CODE, PROP_FW_VERSION, SiriusAuthError
 from .const import DOMAIN
+from .coordinator import SiriusRangehoodCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,37 +36,38 @@ def sirius_device_info(device_id: str, device: dict[str, Any]) -> DeviceInfo:
     )
 
 
-class SiriusEntity(CoordinatorEntity):
+class SiriusEntity(CoordinatorEntity[SiriusRangehoodCoordinator]):
     """Base class for Sirius Rangehood entities."""
 
     _attr_has_entity_name = True
 
+    _device_id: str
+
     @property
     def available(self) -> bool:
         """Return True when the coordinator is healthy and MQTT is usable."""
-        return super().available and self.coordinator.mqtt_available  # type: ignore[attr-defined]
+        return super().available and self.coordinator.mqtt_available
 
     def _get_device_state(self) -> dict[str, Any]:
         """Return latest device state from the coordinator."""
-        return self.coordinator.data.get(self._device_id, {})  # type: ignore[attr-defined]
+        return self.coordinator.data.get(self._device_id, {})
 
     async def _async_send_command(self, params: list[dict[str, Any]]) -> None:
         """Send a setValue command via the hub."""
         try:
-            accepted = await self.coordinator.hub.async_send_command(  # type: ignore[attr-defined]
-                self._device_id,
-                params,  # type: ignore[attr-defined]
+            accepted = await self.coordinator.hub.async_send_command(
+                self._device_id, params
             )
         except SiriusAuthError:
-            self.coordinator.request_reauth()  # type: ignore[attr-defined]
+            self.coordinator.request_reauth()
             return
         if not accepted:
             _LOGGER.warning(
                 "Command not acknowledged for %s; the device may still apply it",
-                self._device_id,  # type: ignore[attr-defined]
+                self._device_id,
             )
 
     @property
     def extra_state_attributes(self) -> dict[str, str] | None:
         """Return diagnostic attributes."""
-        return {"device_uid": self._device_id} if hasattr(self, "_device_id") else None  # type: ignore[attr-defined]
+        return {"device_uid": self._device_id} if hasattr(self, "_device_id") else None

@@ -3,15 +3,17 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import ssl
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 import paho.mqtt.client as mqtt
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,8 +30,9 @@ class SiriusMQTT:
     _DEFAULT_PORT = 8884
     _KEEPALIVE = 60
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
+        hass: HomeAssistant,
         mqtts_endpoint: str,
         username: str,
         password: str,
@@ -38,6 +41,7 @@ class SiriusMQTT:
         connection_callback: ConnectionCallback | None = None,
     ) -> None:
         """Parse the broker endpoint and store connection details."""
+        self._hass = hass
         self._username = username
         self._password = password
         self._status_callback = status_callback
@@ -147,7 +151,7 @@ class SiriusMQTT:
                 self._client.connect(self._host, self._port, keepalive=self._KEEPALIVE)
 
             _LOGGER.debug("Connecting to MQTT broker %s:%d...", self._host, self._port)
-            await asyncio.get_running_loop().run_in_executor(None, _connect)
+            await self._hass.async_add_executor_job(_connect)
             self._client.loop_start()
             # Synchronous connect() already handled CONNACK, so _on_connect won't
             # fire again. Subscribe upfront.

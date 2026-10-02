@@ -80,11 +80,14 @@ ha_const.Platform.SENSOR = "sensor"
 
 
 class _MockCoordinatorEntity:
-    """Stand-in for CoordinatorEntity — works as a real base class."""
+    """Stand-in for CoordinatorEntity; subscriptable as a generic base."""
 
     def __init__(self, coordinator=None) -> None:
         self.coordinator = coordinator
         self.hass = MagicMock()
+
+    def __class_getitem__(cls, _item):
+        return cls
 
 
 class _MockFanEntity:

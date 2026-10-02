@@ -35,19 +35,21 @@ class TestMQTTInit:
 
     def test_parses_endpoint(self) -> None:
         """Should extract host and port from mqtts:// URL."""
-        mqtt = SiriusMQTT("mqtts://broker.example.com:8884", "user", "pass")
+        mqtt = SiriusMQTT(
+            MagicMock(), "mqtts://broker.example.com:8884", "user", "pass"
+        )
         assert mqtt._host == "broker.example.com"
         assert mqtt._port == 8884
 
     def test_default_port(self) -> None:
         """Should default to port 8884 when no port is specified."""
-        mqtt = SiriusMQTT("mqtts://broker.example.com", "user", "pass")
+        mqtt = SiriusMQTT(MagicMock(), "mqtts://broker.example.com", "user", "pass")
         assert mqtt._host == "broker.example.com"
         assert mqtt._port == 8884
 
     def test_parses_endpoint_without_mqtts_scheme(self) -> None:
         """Host parsing should work even without scheme prefix."""
-        mqtt = SiriusMQTT("mqtts://host:1234", "user", "pass")
+        mqtt = SiriusMQTT(MagicMock(), "mqtts://host:1234", "user", "pass")
         assert mqtt._host == "host"
         assert mqtt._port == 1234
 
@@ -59,7 +61,7 @@ class TestMQTTOnMessage:
     def mqtt_client(self):
         """Create a SiriusMQTT with a mock callback."""
         callback = MagicMock()
-        client = SiriusMQTT("mqtts://host:8883", "user", "pass", callback)
+        client = SiriusMQTT(MagicMock(), "mqtts://host:8883", "user", "pass", callback)
         return client, callback
 
     def test_parses_valid_payload(self, mqtt_client) -> None:
@@ -162,7 +164,7 @@ class TestMQTTSubscription:
 
     def test_subscribes_status(self) -> None:
         """_subscribe_device should subscribe status topic."""
-        client = SiriusMQTT("mqtts://host:8883", "user", "pass")
+        client = SiriusMQTT(MagicMock(), "mqtts://host:8883", "user", "pass")
         client._client = MagicMock()
         client._client.is_connected.return_value = True
 
@@ -179,7 +181,11 @@ class TestMQTTConnection:
         """A successful CONNACK should report connected."""
         callback = MagicMock()
         client = SiriusMQTT(
-            "mqtts://host:8883", "user", "pass", connection_callback=callback
+            MagicMock(),
+            "mqtts://host:8883",
+            "user",
+            "pass",
+            connection_callback=callback,
         )
         client._on_connect(None, None, None, 0)
         callback.assert_called_once_with(True)
@@ -188,7 +194,11 @@ class TestMQTTConnection:
         """A non-zero CONNACK should report disconnected."""
         callback = MagicMock()
         client = SiriusMQTT(
-            "mqtts://host:8883", "user", "pass", connection_callback=callback
+            MagicMock(),
+            "mqtts://host:8883",
+            "user",
+            "pass",
+            connection_callback=callback,
         )
         client._on_connect(None, None, None, 5)
         callback.assert_called_once_with(False)
@@ -197,7 +207,11 @@ class TestMQTTConnection:
         """A disconnect should report disconnected."""
         callback = MagicMock()
         client = SiriusMQTT(
-            "mqtts://host:8883", "user", "pass", connection_callback=callback
+            MagicMock(),
+            "mqtts://host:8883",
+            "user",
+            "pass",
+            connection_callback=callback,
         )
         client._on_disconnect(None, None, 1)
         callback.assert_called_once_with(False)

@@ -20,7 +20,8 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
-    from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
+    from .coordinator import SiriusRangehoodCoordinator
 
 
 async def async_setup_entry(
@@ -36,13 +37,11 @@ async def async_setup_entry(
     entities = []
     for device in devices:
         did = device.get("uid", str(device["id"]))
-        entities.append(SiriusRangehoodPowerSwitch(coordinator, did, device, entry))
+        entities.append(SiriusRangehoodPowerSwitch(coordinator, did, device))
         if CAP_BI_POWER_ENABLED in device.get("_limits", {}):
-            entities.append(
-                SiriusRangehoodBiPowerSwitch(coordinator, did, device, entry)
-            )
+            entities.append(SiriusRangehoodBiPowerSwitch(coordinator, did, device))
         if CAP_TIMER_ENABLE in device.get("_limits", {}):
-            entities.append(SiriusRangehoodTimerSwitch(coordinator, did, device, entry))
+            entities.append(SiriusRangehoodTimerSwitch(coordinator, did, device))
     async_add_entities(entities)
 
 
@@ -53,15 +52,13 @@ class SiriusRangehoodPowerSwitch(SiriusEntity, SwitchEntity):
 
     def __init__(
         self,
-        coordinator: DataUpdateCoordinator,
+        coordinator: SiriusRangehoodCoordinator,
         device_id: str,
         device: dict[str, Any],
-        entry: ConfigEntry,
     ) -> None:
         """Initialize the global power switch."""
         super().__init__(coordinator)
         self._device_id = device_id
-        self._entry_id = entry.entry_id
         self._attr_unique_id = f"{device_id}_power"
         self._attr_device_info = sirius_device_info(device_id, device)
 
@@ -96,15 +93,13 @@ class SiriusRangehoodBiPowerSwitch(SiriusEntity, SwitchEntity):
 
     def __init__(
         self,
-        coordinator: DataUpdateCoordinator,
+        coordinator: SiriusRangehoodCoordinator,
         device_id: str,
         device: dict[str, Any],
-        entry: ConfigEntry,
     ) -> None:
         """Initialize the bi-power switch."""
         super().__init__(coordinator)
         self._device_id = device_id
-        self._entry_id = entry.entry_id
         self._attr_unique_id = f"{device_id}_bi_power"
         self._attr_device_info = sirius_device_info(device_id, device)
 
@@ -133,15 +128,13 @@ class SiriusRangehoodTimerSwitch(SiriusEntity, SwitchEntity):
 
     def __init__(
         self,
-        coordinator: DataUpdateCoordinator,
+        coordinator: SiriusRangehoodCoordinator,
         device_id: str,
         device: dict[str, Any],
-        entry: ConfigEntry,
     ) -> None:
         """Initialize the timer active switch."""
         super().__init__(coordinator)
         self._device_id = device_id
-        self._entry_id = entry.entry_id
         self._attr_unique_id = f"{device_id}_timer_active"
         self._attr_device_info = sirius_device_info(device_id, device)
 

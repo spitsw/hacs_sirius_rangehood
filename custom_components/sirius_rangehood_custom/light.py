@@ -27,7 +27,8 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
-    from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
+    from .coordinator import SiriusRangehoodCoordinator
 
 
 async def async_setup_entry(
@@ -43,7 +44,7 @@ async def async_setup_entry(
     entities = []
     for device in devices:
         did = device.get("uid", str(device["id"]))
-        entities.append(SiriusRangehoodLight(coordinator, did, device, entry))
+        entities.append(SiriusRangehoodLight(coordinator, did, device))
     async_add_entities(entities)
 
 
@@ -57,15 +58,13 @@ class SiriusRangehoodLight(SiriusEntity, LightEntity):
 
     def __init__(
         self,
-        coordinator: DataUpdateCoordinator,
+        coordinator: SiriusRangehoodCoordinator,
         device_id: str,
         device: dict[str, Any],
-        entry: ConfigEntry,
     ) -> None:
         """Initialize the light entity."""
         super().__init__(coordinator)
         self._device_id = device_id
-        self._entry_id = entry.entry_id
         self._attr_unique_id = f"{device_id}_light"
         self._attr_device_info = sirius_device_info(device_id, device)
 

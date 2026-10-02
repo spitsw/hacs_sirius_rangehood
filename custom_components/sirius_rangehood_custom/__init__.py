@@ -88,6 +88,7 @@ async def async_setup_entry(
 
     # Start MQTT
     mqtt = SiriusMQTT(
+        hass,
         mqtts_endpoint,
         username,
         password,

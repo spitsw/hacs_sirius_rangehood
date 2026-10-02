@@ -34,7 +34,8 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
-    from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
+    from .coordinator import SiriusRangehoodCoordinator
 
 SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
@@ -110,14 +111,12 @@ async def async_setup_entry(
     for device in devices:
         did = device.get("uid", str(device["id"]))
         entities.extend(
-            SiriusRangehoodSensor(coordinator, did, device, entry, desc)
+            SiriusRangehoodSensor(coordinator, did, device, desc)
             for desc in SENSOR_DESCRIPTIONS
         )
-        entities.append(SiriusRangehoodFilterCountdown(coordinator, did, device, entry))
+        entities.append(SiriusRangehoodFilterCountdown(coordinator, did, device))
         if CAP_TIMER_ENABLE in device.get("_limits", {}):
-            entities.append(
-                SiriusRangehoodTimerOffTime(coordinator, did, device, entry)
-            )
+            entities.append(SiriusRangehoodTimerOffTime(coordinator, did, device))
     async_add_entities(entities)
 
 
@@ -126,16 +125,14 @@ class SiriusRangehoodSensor(SiriusEntity, SensorEntity):
 
     def __init__(
         self,
-        coordinator: DataUpdateCoordinator,
+        coordinator: SiriusRangehoodCoordinator,
         device_id: str,
         device: dict[str, Any],
-        entry: ConfigEntry,
         description: SensorEntityDescription,
     ) -> None:
         """Initialize the diagnostic sensor."""
         super().__init__(coordinator)
         self._device_id = device_id
-        self._entry_id = entry.entry_id
         self.entity_description = description
         self._attr_unique_id = f"{device_id}_{description.key}"
         self._attr_device_info = sirius_device_info(device_id, device)
@@ -155,15 +152,13 @@ class SiriusRangehoodFilterCountdown(SiriusEntity, SensorEntity):
 
     def __init__(
         self,
-        coordinator: DataUpdateCoordinator,
+        coordinator: SiriusRangehoodCoordinator,
         device_id: str,
         device: dict[str, Any],
-        entry: ConfigEntry,
     ) -> None:
         """Initialize the filter countdown sensor."""
         super().__init__(coordinator)
         self._device_id = device_id
-        self._entry_id = entry.entry_id
         self._attr_unique_id = f"{device_id}_{CAP_FILTER_VALUE}"
         self._attr_device_info = sirius_device_info(device_id, device)
 
@@ -185,15 +180,13 @@ class SiriusRangehoodTimerOffTime(SiriusEntity, SensorEntity):
 
     def __init__(
         self,
-        coordinator: DataUpdateCoordinator,
+        coordinator: SiriusRangehoodCoordinator,
         device_id: str,
         device: dict[str, Any],
-        entry: ConfigEntry,
     ) -> None:
         """Initialize the timer turn-off-time sensor."""
         super().__init__(coordinator)
         self._device_id = device_id
-        self._entry_id = entry.entry_id
         self._attr_unique_id = f"{device_id}_timer_off"
         self._attr_device_info = sirius_device_info(device_id, device)
 
