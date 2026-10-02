@@ -15,30 +15,23 @@ from .api import (
     PERCENTAGE_TO_SPEED,
     SPEED_TO_PERCENTAGE,
 )
-from .entity import SiriusEntity, sirius_device_info
+from .entity import SiriusEntity, iter_devices
 
 if TYPE_CHECKING:
-    from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
     from .coordinator import SiriusRangehoodCoordinator
+    from .data import SiriusRangehoodConfigEntry
 
 
 async def async_setup_entry(
     hass: HomeAssistant,  # noqa: ARG001
-    entry: ConfigEntry,
+    entry: SiriusRangehoodConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the fan platform."""
-    data = entry.runtime_data
-    coordinator = data.coordinator
-    devices = data.devices
-
-    entities = []
-    for device in devices:
-        did = device.get("uid", str(device["id"]))
-        entities.append(SiriusRangehoodFan(coordinator, did, device))
+    entities = [SiriusRangehoodFan(c, did, d) for c, did, d in iter_devices(entry)]
     async_add_entities(entities)
 
 
@@ -59,10 +52,7 @@ class SiriusRangehoodFan(SiriusEntity, FanEntity):
         device: dict[str, Any],
     ) -> None:
         """Initialize the fan entity."""
-        super().__init__(coordinator)
-        self._device_id = device_id
-        self._attr_unique_id = f"{device_id}_fan"
-        self._attr_device_info = sirius_device_info(device_id, device)
+        super().__init__(coordinator, device_id, device, unique_suffix="fan")
 
     @property
     def is_on(self) -> bool | None:

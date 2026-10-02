@@ -8,8 +8,9 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 
-from .api import PROP_IP_ADDRESS, PROP_SECURE_ID, PROP_SSID
+from .api import PROP_FW_VERSION, PROP_IP_ADDRESS, PROP_SECURE_ID, PROP_SSID
 from .const import DOMAIN
+from .entity import device_key
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -26,6 +27,18 @@ TO_REDACT = {
 }
 
 
+def _device_summary(device: dict[str, Any]) -> dict[str, Any]:
+    """Return a redactable summary of a device's static metadata."""
+    return {
+        "id": device["id"],
+        "uid": device.get("uid"),
+        "name": device.get("name"),
+        "model": device.get("description"),
+        "fw_version": device.get(PROP_FW_VERSION),
+        "capabilities": list(device.get("_limits", {})),
+    }
+
+
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant,  # noqa: ARG001
     entry: SiriusRangehoodConfigEntry,
@@ -39,17 +52,7 @@ async def async_get_config_entry_diagnostics(
     diagnostics = {
         "entry_id": entry.entry_id,
         "data": dict(entry.data),
-        "devices": [
-            {
-                "id": d["id"],
-                "uid": d.get("uid"),
-                "name": d.get("name"),
-                "model": d.get("description"),
-                "fw_version": d.get("property.device.fw.version"),
-                "capabilities": list(d.get("_limits", {})),
-            }
-            for d in data.devices
-        ],
+        "devices": [_device_summary(d) for d in data.devices],
         "coordinator": {
             "data": coordinator.data,
             "last_update_success": coordinator.last_update_success,
@@ -81,15 +84,8 @@ async def async_get_device_diagnostics(
 
     device_info = None
     for d in data.devices:
-        if {(DOMAIN, d.get("uid", str(d["id"])))} == device.identifiers:
-            device_info = {
-                "id": d["id"],
-                "uid": d.get("uid"),
-                "name": d.get("name"),
-                "model": d.get("description"),
-                "fw_version": d.get("property.device.fw.version"),
-                "capabilities": list(d.get("_limits", {})),
-            }
+        if {(DOMAIN, device_key(d))} == device.identifiers:
+            device_info = _device_summary(d)
             break
 
     diagnostics = {

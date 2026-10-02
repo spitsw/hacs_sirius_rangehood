@@ -107,14 +107,20 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
             CONF_USERNAME: entry.data.get(CONF_USERNAME, ""),
             CONF_PASSWORD: entry.data.get(CONF_PASSWORD, ""),
         }
+        self._apply_config(
+            entry.data.get(CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT),
+            entry.data.get(CONF_SIRIUS_MQTTS_ENDPOINT, DEFAULT_SIRIUS_MQTTS_ENDPOINT),
+            insecure_tls=entry.data.get(CONF_INSECURE_TLS, False),
+        )
+
+    def _apply_config(
+        self, endpoint: str, mqtts_endpoint: str, *, insecure_tls: bool
+    ) -> None:
+        """Set the endpoint configuration used for login validation and saving."""
         self._config = {
-            CONF_SIRIUS_ENDPOINT: entry.data.get(
-                CONF_SIRIUS_ENDPOINT, DEFAULT_SIRIUS_ENDPOINT
-            ),
-            CONF_SIRIUS_MQTTS_ENDPOINT: entry.data.get(
-                CONF_SIRIUS_MQTTS_ENDPOINT, DEFAULT_SIRIUS_MQTTS_ENDPOINT
-            ),
-            CONF_INSECURE_TLS: entry.data.get(CONF_INSECURE_TLS, False),
+            CONF_SIRIUS_ENDPOINT: endpoint,
+            CONF_SIRIUS_MQTTS_ENDPOINT: mqtts_endpoint,
+            CONF_INSECURE_TLS: insecure_tls,
         }
 
     def _async_save_entry(self) -> ConfigFlowResult:
@@ -142,11 +148,11 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
             self._seed_from_entry(entry)
         else:
             self._user_input = {}
-            self._config = {
-                CONF_SIRIUS_ENDPOINT: DEFAULT_SIRIUS_ENDPOINT,
-                CONF_SIRIUS_MQTTS_ENDPOINT: DEFAULT_SIRIUS_MQTTS_ENDPOINT,
-                CONF_INSECURE_TLS: False,
-            }
+            self._apply_config(
+                DEFAULT_SIRIUS_ENDPOINT,
+                DEFAULT_SIRIUS_MQTTS_ENDPOINT,
+                insecure_tls=False,
+            )
 
         # Reauthentication is credentials-only; endpoints are fixed via Configure.
         if self.source == "reauth":
@@ -224,11 +230,11 @@ class SiriusRangehoodConfigFlow(ConfigFlow, domain=DOMAIN):
             if url_error:
                 errors["base"] = url_error
             else:
-                self._config = {
-                    CONF_SIRIUS_ENDPOINT: user_input[CONF_SIRIUS_ENDPOINT],
-                    CONF_SIRIUS_MQTTS_ENDPOINT: user_input[CONF_SIRIUS_MQTTS_ENDPOINT],
-                    CONF_INSECURE_TLS: user_input.get(CONF_INSECURE_TLS, False),
-                }
+                self._apply_config(
+                    user_input[CONF_SIRIUS_ENDPOINT],
+                    user_input[CONF_SIRIUS_MQTTS_ENDPOINT],
+                    insecure_tls=user_input.get(CONF_INSECURE_TLS, False),
+                )
                 if self._existing_entry() is not None:
                     # Endpoint-only change: verify best-effort, but never block,
                     # so a bad/unreachable URL can always be corrected.

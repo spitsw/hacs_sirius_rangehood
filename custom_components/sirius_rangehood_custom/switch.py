@@ -14,29 +14,24 @@ from .api import (
     CAP_TIMER_ENABLE,
     CAP_TIMER_VALUE,
 )
-from .entity import SiriusEntity, sirius_device_info
+from .entity import SiriusEntity, iter_devices
 
 if TYPE_CHECKING:
-    from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
     from .coordinator import SiriusRangehoodCoordinator
+    from .data import SiriusRangehoodConfigEntry
 
 
 async def async_setup_entry(
     hass: HomeAssistant,  # noqa: ARG001
-    entry: ConfigEntry,
+    entry: SiriusRangehoodConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the switch platform."""
-    data = entry.runtime_data
-    coordinator = data.coordinator
-    devices = data.devices
-
     entities = []
-    for device in devices:
-        did = device.get("uid", str(device["id"]))
+    for coordinator, did, device in iter_devices(entry):
         entities.append(SiriusRangehoodPowerSwitch(coordinator, did, device))
         if CAP_BI_POWER_ENABLED in device.get("_limits", {}):
             entities.append(SiriusRangehoodBiPowerSwitch(coordinator, did, device))
@@ -57,10 +52,7 @@ class SiriusRangehoodPowerSwitch(SiriusEntity, SwitchEntity):
         device: dict[str, Any],
     ) -> None:
         """Initialize the global power switch."""
-        super().__init__(coordinator)
-        self._device_id = device_id
-        self._attr_unique_id = f"{device_id}_power"
-        self._attr_device_info = sirius_device_info(device_id, device)
+        super().__init__(coordinator, device_id, device, unique_suffix="power")
 
     @property
     def is_on(self) -> bool | None:
@@ -98,10 +90,7 @@ class SiriusRangehoodBiPowerSwitch(SiriusEntity, SwitchEntity):
         device: dict[str, Any],
     ) -> None:
         """Initialize the bi-power switch."""
-        super().__init__(coordinator)
-        self._device_id = device_id
-        self._attr_unique_id = f"{device_id}_bi_power"
-        self._attr_device_info = sirius_device_info(device_id, device)
+        super().__init__(coordinator, device_id, device, unique_suffix="bi_power")
 
     @property
     def is_on(self) -> bool | None:
@@ -133,10 +122,7 @@ class SiriusRangehoodTimerSwitch(SiriusEntity, SwitchEntity):
         device: dict[str, Any],
     ) -> None:
         """Initialize the timer active switch."""
-        super().__init__(coordinator)
-        self._device_id = device_id
-        self._attr_unique_id = f"{device_id}_timer_active"
-        self._attr_device_info = sirius_device_info(device_id, device)
+        super().__init__(coordinator, device_id, device, unique_suffix="timer_active")
 
     @property
     def is_on(self) -> bool | None:

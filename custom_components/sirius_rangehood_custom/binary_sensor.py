@@ -11,30 +11,25 @@ from homeassistant.components.binary_sensor import (
 )
 
 from .api import CAP_FILTER_WORN
-from .entity import SiriusEntity, sirius_device_info
+from .entity import SiriusEntity, iter_devices
 
 if TYPE_CHECKING:
-    from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
     from .coordinator import SiriusRangehoodCoordinator
+    from .data import SiriusRangehoodConfigEntry
 
 
 async def async_setup_entry(
     hass: HomeAssistant,  # noqa: ARG001
-    entry: ConfigEntry,
+    entry: SiriusRangehoodConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the binary sensor platform."""
-    data = entry.runtime_data
-    coordinator = data.coordinator
-    devices = data.devices
-
-    entities = []
-    for device in devices:
-        did = device.get("uid", str(device["id"]))
-        entities.append(SiriusRangehoodFilterWorn(coordinator, did, device))
+    entities = [
+        SiriusRangehoodFilterWorn(c, did, d) for c, did, d in iter_devices(entry)
+    ]
     async_add_entities(entities)
 
 
@@ -51,10 +46,7 @@ class SiriusRangehoodFilterWorn(SiriusEntity, BinarySensorEntity):
         device: dict[str, Any],
     ) -> None:
         """Initialize the filter-worn binary sensor."""
-        super().__init__(coordinator)
-        self._device_id = device_id
-        self._attr_unique_id = f"{device_id}_filter_worn"
-        self._attr_device_info = sirius_device_info(device_id, device)
+        super().__init__(coordinator, device_id, device, unique_suffix="filter_worn")
 
     @property
     def is_on(self) -> bool | None:

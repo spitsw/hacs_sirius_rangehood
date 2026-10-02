@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -13,7 +13,26 @@ from .api import PROP_DEVICE_NAME, PROP_FW_CODE, PROP_FW_VERSION, SiriusAuthErro
 from .const import DOMAIN
 from .coordinator import SiriusRangehoodCoordinator
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from .data import SiriusRangehoodConfigEntry
+
 _LOGGER = logging.getLogger(__name__)
+
+
+def device_key(device: dict[str, Any]) -> str:
+    """Return a device's stable key: its uid, falling back to the numeric id."""
+    return device.get("uid", str(device["id"]))
+
+
+def iter_devices(
+    entry: SiriusRangehoodConfigEntry,
+) -> Iterator[tuple[SiriusRangehoodCoordinator, str, dict[str, Any]]]:
+    """Yield (coordinator, device_id, device) for every discovered device."""
+    data = entry.runtime_data
+    for device in data.devices:
+        yield data.coordinator, device_key(device), device
 
 
 def sirius_device_info(device_id: str, device: dict[str, Any]) -> DeviceInfo:
@@ -43,6 +62,20 @@ class SiriusEntity(CoordinatorEntity[SiriusRangehoodCoordinator]):
 
     _device_id: str
 
+    def __init__(
+        self,
+        coordinator: SiriusRangehoodCoordinator,
+        device_id: str,
+        device: dict[str, Any],
+        *,
+        unique_suffix: str,
+    ) -> None:
+        """Initialize the entity, its unique id, and its device registry entry."""
+        super().__init__(coordinator)
+        self._device_id = device_id
+        self._attr_unique_id = f"{device_id}_{unique_suffix}"
+        self._attr_device_info = sirius_device_info(device_id, device)
+
     @property
     def available(self) -> bool:
         """Return True when the coordinator is healthy and MQTT is usable."""
@@ -66,8 +99,3 @@ class SiriusEntity(CoordinatorEntity[SiriusRangehoodCoordinator]):
                 "Command not acknowledged for %s; the device may still apply it",
                 self._device_id,
             )
-
-    @property
-    def extra_state_attributes(self) -> dict[str, str] | None:
-        """Return diagnostic attributes."""
-        return {"device_uid": self._device_id} if hasattr(self, "_device_id") else None

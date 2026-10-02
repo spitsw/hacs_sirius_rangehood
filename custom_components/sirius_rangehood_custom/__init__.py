@@ -22,6 +22,7 @@ from .const import (
 )
 from .coordinator import SiriusRangehoodCoordinator
 from .data import SiriusRangehoodData
+from .entity import device_key
 
 if TYPE_CHECKING:
     from homeassistant.core import CALLBACK_TYPE, HomeAssistant
@@ -67,8 +68,7 @@ async def async_setup_entry(
     # Shared device state: uid (str) -> flattened state dict
     device_states: dict[str, dict[str, Any]] = {}
     for device in devices:
-        did = device.get("uid", str(device["id"]))
-        device_states[did] = dict(device)
+        device_states[device_key(device)] = dict(device)
 
     # Coordinator owns the authoritative state and the getStatus heartbeat.
     coordinator = SiriusRangehoodCoordinator(hass, entry, hub, device_states)
@@ -99,7 +99,7 @@ async def async_setup_entry(
     coordinator.set_mqtt_connected(mqtt_connected)
     if mqtt_connected:
         for device in devices:
-            mqtt.subscribe_device(device.get("uid", str(device["id"])))
+            mqtt.subscribe_device(device_key(device))
 
     try:
         # Initial refresh sends getStatus to bootstrap live state via MQTT
@@ -122,7 +122,6 @@ async def async_setup_entry(
         hub=hub,
         mqtt=mqtt,
         coordinator=coordinator,
-        device_states=device_states,
         devices=devices,
     )
 

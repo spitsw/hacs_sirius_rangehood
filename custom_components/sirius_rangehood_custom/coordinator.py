@@ -104,13 +104,13 @@ class SiriusRangehoodCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
                 self._MQTT_GRACE_PERIOD.total_seconds(),
                 self._on_mqtt_grace_elapsed,
             )
-        self.async_set_updated_data(dict(self.device_states))
+        self.async_set_updated_data(self._snapshot())
 
     def _on_mqtt_grace_elapsed(self, _now: datetime) -> None:
         """Raise the outage repair once the grace period has passed."""
         self._grace_unsub = None
         self._raise_mqtt_repair()
-        self.async_set_updated_data(dict(self.device_states))
+        self.async_set_updated_data(self._snapshot())
 
     def _raise_mqtt_repair(self) -> None:
         if self._mqtt_repair_raised:
@@ -142,6 +142,10 @@ class SiriusRangehoodCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
         """Ask Home Assistant to start the re-authentication flow."""
         self._entry.async_start_reauth(self.hass)
 
+    def _snapshot(self) -> dict[str, dict[str, Any]]:
+        """Return a shallow copy of the device state for listeners."""
+        return dict(self.device_states)
+
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Heartbeat: send getStatus for all devices in parallel."""
         _LOGGER.debug("Coordinator update for %d device(s)", len(self.device_states))
@@ -155,12 +159,12 @@ class SiriusRangehoodCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
                     "Auth failed for device %s, requesting reauth", device_id
                 )
                 self.request_reauth()
-                return dict(self.device_states)
+                return self._snapshot()
             if isinstance(result, Exception):
                 _LOGGER.error("getStatus failed for device %s", device_id)
             elif result is False:
                 _LOGGER.debug("getStatus request not accepted for %s", device_id)
-        return dict(self.device_states)
+        return self._snapshot()
 
     def apply_mqtt_update(self, device_id: str, payload: dict[str, Any]) -> None:
         """
@@ -172,4 +176,4 @@ class SiriusRangehoodCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
         if device_id in self.device_states:
             _LOGGER.debug("MQTT status for device %s: %s", device_id, payload)
             self.device_states[device_id].update(payload)
-            self.async_set_updated_data(dict(self.device_states))
+            self.async_set_updated_data(self._snapshot())

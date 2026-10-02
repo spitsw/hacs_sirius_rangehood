@@ -20,7 +20,6 @@ class SiriusRangehoodData:
     hub: SiriusHub
     mqtt: SiriusMQTT
     coordinator: SiriusRangehoodCoordinator
-    device_states: dict[str, dict[str, Any]]
     devices: list[dict[str, Any]]
 
 

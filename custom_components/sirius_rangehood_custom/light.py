@@ -21,30 +21,23 @@ from .api import (
     LIGHT_COLOR_TEMP_KELVIN_MAX,
     LIGHT_COLOR_TEMP_KELVIN_MIN,
 )
-from .entity import SiriusEntity, sirius_device_info
+from .entity import SiriusEntity, iter_devices
 
 if TYPE_CHECKING:
-    from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
     from .coordinator import SiriusRangehoodCoordinator
+    from .data import SiriusRangehoodConfigEntry
 
 
 async def async_setup_entry(
     hass: HomeAssistant,  # noqa: ARG001
-    entry: ConfigEntry,
+    entry: SiriusRangehoodConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the light platform."""
-    data = entry.runtime_data
-    coordinator = data.coordinator
-    devices = data.devices
-
-    entities = []
-    for device in devices:
-        did = device.get("uid", str(device["id"]))
-        entities.append(SiriusRangehoodLight(coordinator, did, device))
+    entities = [SiriusRangehoodLight(c, did, d) for c, did, d in iter_devices(entry)]
     async_add_entities(entities)
 
 
@@ -63,10 +56,7 @@ class SiriusRangehoodLight(SiriusEntity, LightEntity):
         device: dict[str, Any],
     ) -> None:
         """Initialize the light entity."""
-        super().__init__(coordinator)
-        self._device_id = device_id
-        self._attr_unique_id = f"{device_id}_light"
-        self._attr_device_info = sirius_device_info(device_id, device)
+        super().__init__(coordinator, device_id, device, unique_suffix="light")
 
     @property
     def is_on(self) -> bool | None:
