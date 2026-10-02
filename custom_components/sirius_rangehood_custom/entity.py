@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -10,6 +11,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import PROP_DEVICE_NAME, PROP_FW_CODE, PROP_FW_VERSION, SiriusAuthError
 from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def sirius_device_info(device_id: str, device: dict[str, Any]) -> DeviceInfo:
@@ -49,12 +52,18 @@ class SiriusEntity(CoordinatorEntity):
     async def _async_send_command(self, params: list[dict[str, Any]]) -> None:
         """Send a setValue command via the hub."""
         try:
-            await self.coordinator.hub.async_send_command(  # type: ignore[attr-defined]
+            accepted = await self.coordinator.hub.async_send_command(  # type: ignore[attr-defined]
                 self._device_id,
                 params,  # type: ignore[attr-defined]
             )
         except SiriusAuthError:
             self.coordinator.request_reauth()  # type: ignore[attr-defined]
+            return
+        if not accepted:
+            _LOGGER.warning(
+                "Command not acknowledged for %s; the device may still apply it",
+                self._device_id,  # type: ignore[attr-defined]
+            )
 
     @property
     def extra_state_attributes(self) -> dict[str, str] | None:

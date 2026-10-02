@@ -56,6 +56,6 @@ def mock_hub():
     hub = MagicMock()
     hub.async_ensure_token = AsyncMock(return_value="fake-jwt-token")
     hub.async_discover_devices = AsyncMock(return_value=[])
-    hub.async_send_command = AsyncMock(return_value="req-123")
-    hub.async_get_status = AsyncMock(return_value="req-456")
+    hub.async_send_command = AsyncMock(return_value=True)
+    hub.async_get_status = AsyncMock(return_value=True)
     return hub

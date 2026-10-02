@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -252,8 +251,12 @@ class SiriusHub:
 
         return flat
 
-    async def async_get_status(self, device_id: str) -> str:
-        """Send a getStatus command. Device status arrives asynchronously via MQTT."""
+    async def async_get_status(self, device_id: str) -> bool:
+        """
+        Send a getStatus command. Device status arrives asynchronously via MQTT.
+
+        Returns True when the request reached the server.
+        """
         request_id = str(uuid.uuid4())
         _LOGGER.debug("getStatus for device %s (requestId=%s)", device_id, request_id)
         payload = {
@@ -262,13 +265,16 @@ class SiriusHub:
             "parameters": [],
             "requestId": request_id,
         }
-        await self._post_set_value(device_id, payload)
-        return request_id
+        return await self._post_set_value(device_id, payload)
 
     async def async_send_command(
         self, device_id: str, parameters: list[dict[str, Any]]
-    ) -> str:
-        """Send a setValue command. Device auto-publishes updated status via MQTT."""
+    ) -> bool:
+        """
+        Send a setValue command. Device auto-publishes updated status via MQTT.
+
+        Returns True when the request reached the server.
+        """
         request_id = str(uuid.uuid4())
         _LOGGER.debug(
             "setValue for device %s: %s (requestId=%s)",
@@ -282,13 +288,10 @@ class SiriusHub:
             "parameters": parameters,
             "requestId": request_id,
         }
-        await self._post_set_value(device_id, payload)
-        return request_id
+        return await self._post_set_value(device_id, payload)
 
-    async def _post_set_value(
-        self, device_id: str, payload: dict[str, Any]
-    ) -> dict[str, Any] | None:
-        """Low-level POST to /devices/{id}/set_value."""
+    async def _post_set_value(self, device_id: str, payload: dict[str, Any]) -> bool:
+        """Low-level POST to /devices/{id}/set_value. True when accepted (HTTP 200)."""
         token = await self.async_ensure_token()
         url = f"{self._sirius_endpoint}{API_SET_VALUE.format(device_id=device_id)}"
         headers = _auth_headers(token)
@@ -304,33 +307,27 @@ class SiriusHub:
                     msg = "JWT rejected by set_value"
                     raise SiriusAuthError(msg)  # noqa: TRY301
 
-                data = None
-                with contextlib.suppress(aiohttp.ContentTypeError):
-                    # Server may return a non-JSON response (e.g. empty body
-                    # with 2xx); the command was still processed.
-                    data = await resp.json()
-
                 if resp.status != _HTTP_OK:
                     _LOGGER.error(
                         "set_value failed for device %s (HTTP %d)",
                         device_id,
                         resp.status,
                     )
-                else:
-                    _LOGGER.debug("set_value succeeded for device %s", device_id)
-                return data
+                    return False
+                _LOGGER.debug("set_value succeeded for device %s", device_id)
+                return True
         except SiriusAuthError:
             raise
         except TimeoutError:
             _LOGGER.exception("set_value timed out for %s after retries", device_id)
-            return None
+            return False
         except aiohttp.ClientError:
             _LOGGER.warning(
                 "set_value connection lost for %s after retries "
                 "(command may have been processed; check for MQTT status update)",
                 device_id,
             )
-            return None
+            return False
 
 
 class SiriusAuthError(Exception):

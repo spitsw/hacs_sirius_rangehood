@@ -24,7 +24,7 @@ from .coordinator import SiriusRangehoodCoordinator
 from .data import SiriusRangehoodData
 
 if TYPE_CHECKING:
-    from homeassistant.core import HomeAssistant
+    from homeassistant.core import CALLBACK_TYPE, HomeAssistant
 
     from .data import SiriusRangehoodConfigEntry
 
@@ -62,16 +62,7 @@ async def async_setup_entry(
         hub.restore_token(stored.get("token"), stored.get("expiry"))
 
     # Discover devices: gets static properties + initial capability values
-    try:
-        devices = await hub.async_discover_devices()
-    except SiriusAuthError as err:
-        raise ConfigEntryAuthFailed(str(err)) from err
-    except Exception as err:
-        msg = f"Sirius device discovery failed: {err}"
-        raise ConfigEntryNotReady(msg) from err
-    if not devices:
-        msg = "No Sirius devices discovered"
-        raise ConfigEntryNotReady(msg)
+    devices = await _async_discover_devices(hub)
 
     # Shared device state: uid (str) -> flattened state dict
     device_states: dict[str, dict[str, Any]] = {}
@@ -113,10 +104,11 @@ async def async_setup_entry(
     try:
         # Initial refresh sends getStatus to bootstrap live state via MQTT
         await coordinator.async_config_entry_first_refresh()
-    except Exception:
+    except Exception as err:
         _LOGGER.exception("Initial refresh failed, cleaning up")
         await mqtt.async_stop()
-        return False
+        msg = f"Initial refresh failed: {err}"
+        raise ConfigEntryNotReady(msg) from err
 
     _LOGGER.info(
         "Sirius Rangehood setup complete: %d device(s), %s",
@@ -124,7 +116,7 @@ async def async_setup_entry(
         "MQTT connected" if mqtt_connected else "MQTT offline",
     )
 
-    await _async_refresh_token(hass, entry, hub)
+    await _async_start_token_refresh(hass, entry, hub)
 
     entry.runtime_data = SiriusRangehoodData(
         hub=hub,
@@ -140,30 +132,58 @@ async def async_setup_entry(
     return True
 
 
-async def _async_refresh_token(
+async def _async_discover_devices(hub: SiriusHub) -> list[dict[str, Any]]:
+    """Discover devices, mapping failures to config-entry setup exceptions."""
+    try:
+        devices = await hub.async_discover_devices()
+    except SiriusAuthError as err:
+        raise ConfigEntryAuthFailed(str(err)) from err
+    except Exception as err:
+        msg = f"Sirius device discovery failed: {err}"
+        raise ConfigEntryNotReady(msg) from err
+    if not devices:
+        msg = "No Sirius devices discovered"
+        raise ConfigEntryNotReady(msg)
+    return devices
+
+
+async def _async_start_token_refresh(
     hass: HomeAssistant,
     entry: SiriusRangehoodConfigEntry,
     hub: SiriusHub,
 ) -> None:
-    """Refresh the auth token, rescheduling one minute before it next expires."""
-    try:
-        await hub.async_ensure_token()
-    except Exception:
-        _LOGGER.exception("Failed to refresh auth token")
-    expiry = hub.token_expiry
-    if expiry is None:
-        return
-    remaining = (expiry - datetime.now(UTC)).total_seconds() - 60
-    if remaining > 0:
-        entry.async_on_unload(
-            async_call_later(
-                hass,
-                remaining,
-                lambda _now: hass.async_create_task(
-                    _async_refresh_token(hass, entry, hub)
-                ),
-            )
-        )
+    """
+    Keep the auth token fresh, rescheduling with a single timer.
+
+    One cancel handle is reused across reschedules (instead of registering a
+    new ``async_on_unload`` callback per refresh), so a long-running entry does
+    not accumulate unload callbacks.
+    """
+    cancel: CALLBACK_TYPE | None = None
+
+    async def _refresh(now: datetime | None = None) -> None:  # noqa: ARG001
+        """Refresh the token and schedule the next attempt."""
+        nonlocal cancel
+        try:
+            await hub.async_ensure_token()
+        except Exception:
+            _LOGGER.exception("Failed to refresh auth token")
+        if cancel is not None:
+            cancel()
+            cancel = None
+        expiry = hub.token_expiry
+        if expiry is None:
+            return
+        remaining = (expiry - datetime.now(UTC)).total_seconds() - 60
+        if remaining > 0:
+            cancel = async_call_later(hass, remaining, _refresh)
+
+    def _cancel() -> None:
+        if cancel is not None:
+            cancel()
+
+    entry.async_on_unload(_cancel)
+    await _refresh()
 
 
 async def async_unload_entry(

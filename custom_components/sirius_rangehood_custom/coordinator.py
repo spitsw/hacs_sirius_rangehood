@@ -160,6 +160,8 @@ class SiriusRangehoodCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
                 return dict(self.device_states)
             if isinstance(result, Exception):
                 _LOGGER.error("getStatus failed for device %s", device_id)
+            elif result is False:
+                _LOGGER.debug("getStatus request not accepted for %s", device_id)
         return dict(self.device_states)
 
     def apply_mqtt_update(self, device_id: str, payload: dict[str, Any]) -> None:

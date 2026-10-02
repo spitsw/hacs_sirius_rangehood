@@ -171,9 +171,11 @@ class SiriusMQTT:
     async def async_stop(self) -> None:
         """Disconnect the MQTT client."""
         if self._client:
-            self._client.loop_stop()
             self._client.disconnect()
+            self._client.loop_stop()
             self._client = None
+            if self._connection_callback:
+                self._connection_callback(False)  # noqa: FBT003
             _LOGGER.debug("MQTT disconnected")
 
     def subscribe_device(self, device_id: str) -> None:
