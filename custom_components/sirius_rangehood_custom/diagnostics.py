@@ -5,6 +5,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from homeassistant.components.diagnostics import async_redact_data
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+
+from .api import PROP_IP_ADDRESS, PROP_SECURE_ID, PROP_SSID
 from .const import DOMAIN
 
 if TYPE_CHECKING:
@@ -12,6 +16,14 @@ if TYPE_CHECKING:
     from homeassistant.helpers.device_registry import DeviceEntry
 
     from .data import SiriusRangehoodConfigEntry
+
+TO_REDACT = {
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    PROP_IP_ADDRESS,
+    PROP_SSID,
+    PROP_SECURE_ID,
+}
 
 
 async def async_get_config_entry_diagnostics(
@@ -24,9 +36,9 @@ async def async_get_config_entry_diagnostics(
     coordinator = data.coordinator
     mqtt = data.mqtt
 
-    return {
+    diagnostics = {
         "entry_id": entry.entry_id,
-        "data": {k: v for k, v in entry.data.items() if k != "password"},
+        "data": dict(entry.data),
         "devices": [
             {
                 "id": d["id"],
@@ -55,6 +67,7 @@ async def async_get_config_entry_diagnostics(
         if mqtt
         else None,
     }
+    return async_redact_data(diagnostics, TO_REDACT)
 
 
 async def async_get_device_diagnostics(
@@ -79,7 +92,7 @@ async def async_get_device_diagnostics(
             }
             break
 
-    return {
+    diagnostics = {
         "entry_id": entry.entry_id,
         "device": device_info,
         "coordinator": {
@@ -89,3 +102,4 @@ async def async_get_device_diagnostics(
             "token_expiry": hub.token_expiry.isoformat() if hub.token_expiry else None,
         },
     }
+    return async_redact_data(diagnostics, TO_REDACT)

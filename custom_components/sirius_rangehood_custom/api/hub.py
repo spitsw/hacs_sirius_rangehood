@@ -78,21 +78,13 @@ class SiriusHub:
 
     def __init__(
         self,
-        session: aiohttp.ClientSession | None = None,
+        session: aiohttp.ClientSession,
         sirius_endpoint: str = "",
         username: str = "",
         password: str = "",
-        *,
-        insecure_tls: bool = False,
     ) -> None:
-        """Initialize the hub, creating its own session when TLS is relaxed."""
-        self._insecure_tls = insecure_tls
-        if insecure_tls:
-            self._session = aiohttp.ClientSession(
-                connector=aiohttp.TCPConnector(ssl=False),
-            )
-        else:
-            self._session = session or aiohttp.ClientSession()
+        """Initialize the hub with the shared Home Assistant HTTP session."""
+        self._session = session
         self._sirius_endpoint = sirius_endpoint.rstrip("/")
         self._username = username
         self._password = password

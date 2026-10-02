@@ -51,10 +51,8 @@ async def async_setup_entry(
     password = entry.data[CONF_PASSWORD]
     insecure_tls = entry.data.get(CONF_INSECURE_TLS, False)
 
-    session = async_get_clientsession(hass)
-    hub = SiriusHub(
-        session, sirius_endpoint, username, password, insecure_tls=insecure_tls
-    )
+    session = async_get_clientsession(hass, verify_ssl=not insecure_tls)
+    hub = SiriusHub(session, sirius_endpoint, username, password)
 
     # Auth token persistence
     store = Store[dict[str, Any]](hass, 1, f"{DOMAIN}_auth_{entry.entry_id}")
@@ -163,12 +161,13 @@ async def async_unload_entry(
     entry: SiriusRangehoodConfigEntry,
 ) -> bool:
     """Unload a config entry."""
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     data = entry.runtime_data
-    if data:
+    if unloaded and data:
         await data.mqtt.async_stop()
         await data.coordinator.async_shutdown()
 
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    return unloaded
 
 
 async def _async_update_listener(

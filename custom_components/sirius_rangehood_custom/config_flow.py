@@ -57,13 +57,14 @@ async def _try_discover_devices(
     sirius_endpoint: str = DEFAULT_SIRIUS_ENDPOINT,
 ) -> list[dict[str, Any]] | None:
     """Validate credentials and discover Sirius devices."""
-    session = async_get_clientsession(hass)
+    session = async_get_clientsession(
+        hass, verify_ssl=not user_input.get(CONF_INSECURE_TLS, False)
+    )
     hub = SiriusHub(
         session,
         sirius_endpoint,
         user_input[CONF_USERNAME],
         user_input[CONF_PASSWORD],
-        insecure_tls=user_input.get(CONF_INSECURE_TLS, False),
     )
     try:
         devices = await hub.async_discover_devices(retry=False)
