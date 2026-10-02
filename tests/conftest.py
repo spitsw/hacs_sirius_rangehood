@@ -90,8 +90,18 @@ class _MockFanEntity:
     """Stand-in for FanEntity — works as a real base class."""
 
 
+class _MockDataUpdateCoordinator:
+    """Stand-in for DataUpdateCoordinator; subscriptable as a generic base."""
+
+    def __init__(self, *_args, **_kwargs) -> None:
+        pass
+
+    def __class_getitem__(cls, _item):
+        return cls
+
+
 ha_coord = sys.modules["homeassistant.helpers.update_coordinator"]
-ha_coord.DataUpdateCoordinator = MagicMock
+ha_coord.DataUpdateCoordinator = _MockDataUpdateCoordinator
 ha_coord.CoordinatorEntity = _MockCoordinatorEntity
 
 ha_storage = sys.modules["homeassistant.helpers.storage"]

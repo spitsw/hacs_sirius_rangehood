@@ -3,24 +3,23 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .api import GET_STATUS_INTERVAL, SiriusAuthError, SiriusHub, SiriusMQTT
+from .api import SiriusHub, SiriusMQTT
 from .const import (
     CONF_INSECURE_TLS,
     CONF_SIRIUS_ENDPOINT,
     CONF_SIRIUS_MQTTS_ENDPOINT,
     DOMAIN,
 )
+from .coordinator import SiriusRangehoodCoordinator
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -38,7 +37,7 @@ PLATFORMS = [
 ]
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:  # noqa: PLR0915
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Sirius Rangehood from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
@@ -74,46 +73,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:  #
 
     entry_id = entry.entry_id
 
-    # Coordinator: sends getStatus heartbeat every 5 min
-    async def _async_update_data() -> dict[str, dict[str, Any]]:
-        """Heartbeat: send getStatus for all devices in parallel."""
-        _LOGGER.debug("Coordinator update for %d device(s)", len(device_states))
-        results = await asyncio.gather(
-            *[hub.async_get_status(did) for did in device_states],
-            return_exceptions=True,
-        )
-        for device_id, result in zip(list(device_states), results, strict=False):
-            if isinstance(result, SiriusAuthError):
-                _LOGGER.warning(
-                    "Auth failed for device %s, requesting reauth", device_id
-                )
-                hass.async_create_task(hass.config_entries.async_start_reauth(entry_id))
-                return dict(device_states)
-            if isinstance(result, Exception):
-                _LOGGER.error("getStatus failed for device %s", device_id)
-        return dict(device_states)
-
-    coordinator = DataUpdateCoordinator(
-        hass,
-        _LOGGER,
-        name=f"{DOMAIN} devices",
-        update_method=_async_update_data,
-        update_interval=timedelta(seconds=GET_STATUS_INTERVAL),
-    )
+    # Coordinator owns the authoritative state and the getStatus heartbeat.
+    coordinator = SiriusRangehoodCoordinator(hass, entry, hub, device_states)
 
     # MQTT status callback: called from paho-mqtt background thread.
     # All device_states access happens on the HA event loop to avoid concurrent
     # reads/writes from both the paho thread and the coordinator.
     def _on_mqtt_status(device_id: str, payload: dict[str, Any]) -> None:
         """Forward MQTT update to the HA event loop for thread-safe processing."""
-        hass.loop.call_soon_threadsafe(_apply_mqtt_update, device_id, payload)
-
-    def _apply_mqtt_update(device_id: str, payload: dict[str, Any]) -> None:
-        """Match device, update state, and notify coordinator (HA event loop only)."""
-        if device_id in device_states:
-            _LOGGER.debug("MQTT status for device %s: %s", device_id, payload)
-            device_states[device_id].update(payload)
-            coordinator.async_set_updated_data(dict(device_states))
+        hass.loop.call_soon_threadsafe(
+            coordinator.apply_mqtt_update, device_id, payload
+        )
 
     # Start MQTT
     mqtt = SiriusMQTT(

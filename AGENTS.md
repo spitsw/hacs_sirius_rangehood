@@ -74,10 +74,12 @@ The full rationale is in `ARCHITECTURE.md` (ADR-1 … ADR-11) and the wire
 protocol in `PROTOCOL.md`. Read those before changing behavior. The
 load-bearing points:
 
-- **Coordinator is the single source of truth.** `DataUpdateCoordinator` owns
-  `device_states` (keyed by device **uid**, not numeric id). Entities subclass
-  `CoordinatorEntity` (via `SiriusEntity`) and only ever read
-  `coordinator.data.get(device_id)`.
+- **Coordinator is the single source of truth.** `SiriusRangehoodCoordinator`
+  (`coordinator.py`, a `DataUpdateCoordinator` subclass) owns `device_states`
+  (keyed by device **uid**, not numeric id). Both data paths funnel through it:
+  MQTT push via `apply_mqtt_update()` and the HTTP `getStatus` heartbeat via its
+  `_async_update_data`. Entities subclass `CoordinatorEntity` (via
+  `SiriusEntity`) and only ever read `coordinator.data.get(device_id)`.
 - **Commands go out over HTTP, state comes in over MQTT.** `hub.async_send_command()`
   POSTs `setValue`; the device then pushes a `/status` message that updates
   state. Entities do not read the HTTP response for state.
