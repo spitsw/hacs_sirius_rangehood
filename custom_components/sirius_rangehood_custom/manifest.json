@@ -9,6 +9,6 @@
   "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/spitsw/hacs_sirius_rangehood/issues",
   "loggers": ["custom_components.sirius_rangehood_custom"],
-  "requirements": ["paho-mqtt==2.1.0"],
+  "requirements": ["paho-mqtt>=2.1.0"],
   "version": "1.0.0"
 }
