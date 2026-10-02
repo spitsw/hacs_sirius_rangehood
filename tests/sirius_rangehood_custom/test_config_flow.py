@@ -88,8 +88,14 @@ async def test_user_flow_creates_entry_with_defaults(hass, monkeypatch) -> None:
     )
 
 
-async def test_reconfigure_reaches_endpoints_without_login(hass) -> None:
+async def test_reconfigure_reaches_endpoints_without_login(hass, monkeypatch) -> None:
     """Endpoint editing must be reachable even when the stored URL is broken."""
+
+    async def _fake_discover(*_args, **_kwargs):
+        return [{"id": 1, "uid": "u1", "name": "n", "description": "d"}]
+
+    monkeypatch.setattr(cf, "_try_discover_devices", _fake_discover)
+
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
@@ -114,3 +120,15 @@ async def test_reconfigure_reaches_endpoints_without_login(hass) -> None:
     )
     assert result["type"] == "form"
     assert result["step_id"] == "endpoints"
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            CONF_SIRIUS_ENDPOINT: "https://fixed.example.com",
+            CONF_SIRIUS_MQTTS_ENDPOINT: "mqtts://fixed.example.com:8884",
+            CONF_INSECURE_TLS: False,
+        },
+    )
+    assert result["type"] == "abort"
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.data[CONF_SIRIUS_ENDPOINT] == "https://fixed.example.com"
