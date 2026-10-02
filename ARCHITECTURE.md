@@ -101,9 +101,9 @@ notified when data changes via `async_set_updated_data`.
 
 **Status**: Accepted
 
-**Context**: The Sirius IoT platform exposes two channels — an HTTPS REST
-API and an MQTT broker. Commands (`setValue`) can be sent over either, but
-live status updates only arrive over MQTT.
+**Context**: The Sirius IoT platform exposes two channels: an HTTPS REST
+API for command execution and device discovery, and an MQTT broker for
+live status updates. Commands (`setValue`) can only be sent via HTTP.
 
 **Decision**:
 - **Commands** → HTTPS POST to `/devices/{id}/set_value`. The device
