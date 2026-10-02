@@ -25,7 +25,7 @@ choose **Configure custom endpoints** after logging in.
 | **Timer Active** | Start / stop the countdown |
 | **Boost Duration** | How long boost mode runs (in seconds) |
 | **Global Power** | Turn fan and light on/off together |
-| **Bi-Power** | Enable dual-power mode (if supported) |
+| **Bi-Power** | Enable extra airflow and powerful extraction (if supported) |
 
 **Sensors** show IP address, WiFi signal strength, firmware version,
 filter life, filter worn alert, and estimated turn-off time.

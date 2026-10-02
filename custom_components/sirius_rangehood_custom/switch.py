@@ -79,7 +79,7 @@ class SiriusRangehoodPowerSwitch(SiriusEntity, SwitchEntity):
 
 
 class SiriusRangehoodBiPowerSwitch(SiriusEntity, SwitchEntity):
-    """Bi-power mode switch."""
+    """Enable extra airflow and powerful extraction."""
 
     _attr_translation_key = "bi_power"
 
