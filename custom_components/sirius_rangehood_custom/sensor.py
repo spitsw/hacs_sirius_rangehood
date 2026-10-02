@@ -65,13 +65,6 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
-        key=CAP_TIMER_ACTIVE,
-        translation_key="timer_active",
-        name="Timer Active",
-        icon="mdi:clock-outline",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    SensorEntityDescription(
         key=PROP_DEVICE_REF,
         translation_key="device_ref",
         name="Device Ref",
