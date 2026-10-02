@@ -14,9 +14,7 @@ from .api import (
     FAN_SPEED_OFF,
     PERCENTAGE_TO_SPEED,
     SPEED_TO_PERCENTAGE,
-    SiriusAuthError,
 )
-from .const import DOMAIN
 from .entity import SiriusEntity, sirius_device_info
 
 if TYPE_CHECKING:
@@ -27,14 +25,14 @@ if TYPE_CHECKING:
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,
+    hass: HomeAssistant,  # noqa: ARG001
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the fan platform."""
-    data = hass.data[DOMAIN][entry.entry_id]
-    coordinator = data["coordinator"]
-    devices = data["devices"]
+    data = entry.runtime_data
+    coordinator = data.coordinator
+    devices = data.devices
 
     entities = []
     for device in devices:
@@ -88,7 +86,7 @@ class SiriusRangehoodFan(SiriusEntity, FanEntity):
         speed = min(PERCENTAGE_TO_SPEED.items(), key=lambda x: abs(x[0] - percentage))[
             1
         ]
-        await self._async_send_command(CAP_FAN_SPEED, speed)
+        await self._async_send_command([{"id": CAP_FAN_SPEED, "value": speed}])
 
     async def async_turn_on(
         self,
@@ -100,19 +98,10 @@ class SiriusRangehoodFan(SiriusEntity, FanEntity):
         if percentage is not None:
             await self.async_set_percentage(percentage)
         else:
-            await self._async_send_command(CAP_FAN_SPEED, FAN_SPEED_LOW)
+            await self._async_send_command(
+                [{"id": CAP_FAN_SPEED, "value": FAN_SPEED_LOW}]
+            )
 
     async def async_turn_off(self, **kwargs: Any) -> None:  # noqa: ARG002
         """Turn the fan off."""
-        await self._async_send_command(CAP_FAN_SPEED, FAN_SPEED_OFF)
-
-    async def _async_send_command(self, capability_id: str, value: float) -> None:
-        """Send a single-capability setValue command via the hub."""
-        data = self.hass.data[DOMAIN][self._entry_id]
-        hub = data["hub"]
-        try:
-            await hub.async_send_command(
-                self._device_id, [{"id": capability_id, "value": value}]
-            )
-        except SiriusAuthError:
-            data.get("reauth", lambda: None)()
+        await self._async_send_command([{"id": CAP_FAN_SPEED, "value": FAN_SPEED_OFF}])

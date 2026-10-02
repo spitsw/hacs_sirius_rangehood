@@ -231,7 +231,7 @@ class SiriusHub:
             _LOGGER.exception(
                 "Device discovery failed%s", " after retries" if retry else ""
             )
-            return []
+            raise
 
     def _flatten_device(self, device: dict[str, Any]) -> dict[str, Any]:
         """Flatten properties[] and capabilities[] into a single dict per device."""

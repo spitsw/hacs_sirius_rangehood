@@ -21,7 +21,6 @@ from .api import (
     LIGHT_COLOR_TEMP_KELVIN_MAX,
     LIGHT_COLOR_TEMP_KELVIN_MIN,
 )
-from .const import DOMAIN
 from .entity import SiriusEntity, sirius_device_info
 
 if TYPE_CHECKING:
@@ -32,14 +31,14 @@ if TYPE_CHECKING:
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,
+    hass: HomeAssistant,  # noqa: ARG001
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the light platform."""
-    data = hass.data[DOMAIN][entry.entry_id]
-    coordinator = data["coordinator"]
-    devices = data["devices"]
+    data = entry.runtime_data
+    coordinator = data.coordinator
+    devices = data.devices
 
     entities = []
     for device in devices:

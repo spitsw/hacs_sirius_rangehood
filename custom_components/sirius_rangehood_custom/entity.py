@@ -43,12 +43,13 @@ class SiriusEntity(CoordinatorEntity):
 
     async def _async_send_command(self, params: list[dict[str, Any]]) -> None:
         """Send a setValue command via the hub."""
-        data = self.hass.data[DOMAIN][self._entry_id]  # type: ignore[attr-defined]
-        hub = data["hub"]
         try:
-            await hub.async_send_command(self._device_id, params)  # type: ignore[attr-defined]
+            await self.coordinator.hub.async_send_command(  # type: ignore[attr-defined]
+                self._device_id,
+                params,  # type: ignore[attr-defined]
+            )
         except SiriusAuthError:
-            data.get("reauth", lambda: None)()
+            self.coordinator.request_reauth()  # type: ignore[attr-defined]
 
     @property
     def extra_state_attributes(self) -> dict[str, str] | None:

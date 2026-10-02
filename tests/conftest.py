@@ -41,6 +41,7 @@ for path in (
     "homeassistant.config_entries",
     "homeassistant.const",
     "homeassistant.core",
+    "homeassistant.exceptions",
     "homeassistant.components.fan",
     "homeassistant.components.light",
     "homeassistant.components.switch",

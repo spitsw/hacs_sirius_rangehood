@@ -48,6 +48,17 @@ class SiriusRangehoodCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
         self._hub = hub
         self.device_states = device_states
 
+    @property
+    def hub(self) -> SiriusHub:
+        """Return the HTTP API client backing this coordinator."""
+        return self._hub
+
+    def request_reauth(self) -> None:
+        """Ask Home Assistant to start the re-authentication flow."""
+        self.hass.async_create_task(
+            self.hass.config_entries.async_start_reauth(self._entry.entry_id)
+        )
+
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Heartbeat: send getStatus for all devices in parallel."""
         _LOGGER.debug("Coordinator update for %d device(s)", len(self.device_states))
@@ -60,9 +71,7 @@ class SiriusRangehoodCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
                 _LOGGER.warning(
                     "Auth failed for device %s, requesting reauth", device_id
                 )
-                self.hass.async_create_task(
-                    self.hass.config_entries.async_start_reauth(self._entry.entry_id)
-                )
+                self.request_reauth()
                 return dict(self.device_states)
             if isinstance(result, Exception):
                 _LOGGER.error("getStatus failed for device %s", device_id)

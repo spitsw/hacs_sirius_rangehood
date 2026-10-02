@@ -8,20 +8,21 @@ from typing import TYPE_CHECKING, Any
 from .const import DOMAIN
 
 if TYPE_CHECKING:
-    from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.device_registry import DeviceEntry
 
+    from .data import SiriusRangehoodConfigEntry
+
 
 async def async_get_config_entry_diagnostics(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
+    hass: HomeAssistant,  # noqa: ARG001
+    entry: SiriusRangehoodConfigEntry,
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
-    data = hass.data[DOMAIN][entry.entry_id]
-    hub = data["hub"]
-    coordinator = data["coordinator"]
-    mqtt = data.get("mqtt")
+    data = entry.runtime_data
+    hub = data.hub
+    coordinator = data.coordinator
+    mqtt = data.mqtt
 
     return {
         "entry_id": entry.entry_id,
@@ -35,7 +36,7 @@ async def async_get_config_entry_diagnostics(
                 "fw_version": d.get("property.device.fw.version"),
                 "capabilities": list(d.get("_limits", {})),
             }
-            for d in data["devices"]
+            for d in data.devices
         ],
         "coordinator": {
             "data": coordinator.data,
@@ -57,16 +58,16 @@ async def async_get_config_entry_diagnostics(
 
 
 async def async_get_device_diagnostics(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
+    hass: HomeAssistant,  # noqa: ARG001
+    entry: SiriusRangehoodConfigEntry,
     device: DeviceEntry,
 ) -> dict[str, Any]:
     """Return diagnostics for a specific device."""
-    data = hass.data[DOMAIN][entry.entry_id]
-    hub = data["hub"]
+    data = entry.runtime_data
+    hub = data.hub
 
     device_info = None
-    for d in data["devices"]:
+    for d in data.devices:
         if {(DOMAIN, d.get("uid", str(d["id"])))} == device.identifiers:
             device_info = {
                 "id": d["id"],
@@ -82,7 +83,7 @@ async def async_get_device_diagnostics(
         "entry_id": entry.entry_id,
         "device": device_info,
         "coordinator": {
-            "last_update_success": data["coordinator"].last_update_success,
+            "last_update_success": data.coordinator.last_update_success,
         },
         "hub": {
             "token_expiry": hub.token_expiry.isoformat() if hub.token_expiry else None,
