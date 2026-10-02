@@ -19,7 +19,7 @@ from custom_components.sirius_rangehood_custom.api.mqtt import SiriusMQTT
 class TestSSLContext:
     """Verify the custom SSL context tolerates known certificate issues."""
 
-    def test_relaxed_verification(self):
+    def test_relaxed_verification(self) -> None:
         """_create_ssl_context should use CERT_OPTIONAL with no hostname check."""
         # Can't call _create_ssl_context directly (async + blocking I/O),
         # so we verify the module's expected config via a local context.
@@ -33,19 +33,19 @@ class TestSSLContext:
 class TestMQTTInit:
     """Verify MQTT client initialisation and URL parsing."""
 
-    def test_parses_endpoint(self):
+    def test_parses_endpoint(self) -> None:
         """Should extract host and port from mqtts:// URL."""
         mqtt = SiriusMQTT("mqtts://broker.example.com:8884", "user", "pass")
         assert mqtt._host == "broker.example.com"
         assert mqtt._port == 8884
 
-    def test_default_port(self):
+    def test_default_port(self) -> None:
         """Should default to port 8884 when no port is specified."""
         mqtt = SiriusMQTT("mqtts://broker.example.com", "user", "pass")
         assert mqtt._host == "broker.example.com"
         assert mqtt._port == 8884
 
-    def test_parses_endpoint_without_mqtts_scheme(self):
+    def test_parses_endpoint_without_mqtts_scheme(self) -> None:
         """Host parsing should work even without scheme prefix."""
         mqtt = SiriusMQTT("mqtts://host:1234", "user", "pass")
         assert mqtt._host == "host"
@@ -62,7 +62,7 @@ class TestMQTTOnMessage:
         client = SiriusMQTT("mqtts://host:8883", "user", "pass", callback)
         return client, callback
 
-    def test_parses_valid_payload(self, mqtt_client):
+    def test_parses_valid_payload(self, mqtt_client) -> None:
         """_on_message should parse JSON and extract device ID from topic."""
         client, callback = mqtt_client
         payload = json.dumps(
@@ -79,7 +79,7 @@ class TestMQTTOnMessage:
 
         callback.assert_called_once_with("device-1", {"device.fanSpeed": 3})
 
-    def test_multiple_values(self, mqtt_client):
+    def test_multiple_values(self, mqtt_client) -> None:
         """_on_message should flatten multiple values."""
         client, callback = mqtt_client
         payload = json.dumps(
@@ -103,7 +103,7 @@ class TestMQTTOnMessage:
             {"device.onOff": 1.0, "device.fanSpeed": 2, "device.lightOnOff": 1.0},
         )
 
-    def test_skips_non_dict_items(self, mqtt_client):
+    def test_skips_non_dict_items(self, mqtt_client) -> None:
         """_on_message should skip values entries that are not dicts or lack 'id'."""
         client, callback = mqtt_client
         payload = json.dumps(
@@ -124,7 +124,7 @@ class TestMQTTOnMessage:
 
         callback.assert_called_once_with("device-1", {"device.onOff": 1.0})
 
-    def test_invalid_json(self, mqtt_client):
+    def test_invalid_json(self, mqtt_client) -> None:
         """_on_message should not crash on invalid JSON."""
         client, callback = mqtt_client
         msg = MagicMock()
@@ -134,7 +134,7 @@ class TestMQTTOnMessage:
         client._on_message(None, None, msg)
         callback.assert_not_called()
 
-    def test_missing_device_id_in_payload(self, mqtt_client):
+    def test_missing_device_id_in_payload(self, mqtt_client) -> None:
         """_on_message should extract device ID from topic when payload has none."""
         client, callback = mqtt_client
         payload = json.dumps({"values": [{"id": "x", "value": 1}]}).encode("utf-8")
@@ -145,7 +145,7 @@ class TestMQTTOnMessage:
         client._on_message(None, None, msg)
         callback.assert_called_once_with("device-1", {"x": 1})
 
-    def test_missing_device_id_in_topic_too(self, mqtt_client):
+    def test_missing_device_id_in_topic_too(self, mqtt_client) -> None:
         """_on_message should not call callback when topic has no device ID."""
         client, callback = mqtt_client
         payload = json.dumps({"values": [{"id": "x", "value": 1}]}).encode("utf-8")
@@ -160,7 +160,7 @@ class TestMQTTOnMessage:
 class TestMQTTSubscription:
     """Verify subscribe_device registers the status topic correctly."""
 
-    def test_subscribes_status(self):
+    def test_subscribes_status(self) -> None:
         """_subscribe_device should subscribe status topic."""
         client = SiriusMQTT("mqtts://host:8883", "user", "pass")
         client._client = MagicMock()

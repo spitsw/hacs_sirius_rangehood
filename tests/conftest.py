@@ -1,4 +1,5 @@
-"""Root conftest: register Home Assistant mocks before any imports.
+"""
+Root conftest: register Home Assistant mocks before any imports.
 
 This must run *before* any test file imports custom_components.sirius_rangehood,
 so we register all synthetic homeassistant.* modules into sys.modules eagerly.
@@ -18,9 +19,11 @@ _MOCKED_PACKAGES: set[str] = set()
 
 
 def _mock_ha_module(dotted_path: str) -> MagicMock:
-    """Ensure a synthetic module at *dotted_path* lives in sys.modules,
+    """
+    Ensure a synthetic module at *dotted_path* lives in sys.modules,
     returning it (creating it if needed).  Also creates intermediate parent
-    packages."""
+    packages.
+    """
     parts = dotted_path.split(".")
     for i in range(1, len(parts) + 1):
         prefix = ".".join(parts[:i])
@@ -78,7 +81,7 @@ ha_const.Platform.SENSOR = "sensor"
 class _MockCoordinatorEntity:
     """Stand-in for CoordinatorEntity — works as a real base class."""
 
-    def __init__(self, coordinator=None):
+    def __init__(self, coordinator=None) -> None:
         self.coordinator = coordinator
         self.hass = MagicMock()
 

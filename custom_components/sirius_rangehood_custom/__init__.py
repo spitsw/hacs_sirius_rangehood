@@ -1,15 +1,14 @@
+# Copyright (c) 2026 Warren Spits
 """Integration setup for Sirius Rangehood."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
@@ -23,6 +22,10 @@ from .const import (
     DOMAIN,
 )
 
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [
@@ -35,7 +38,7 @@ PLATFORMS = [
 ]
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:  # noqa: PLR0915
     """Set up Sirius Rangehood from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
@@ -57,7 +60,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if stored:
         hub.restore_token(stored.get("token"), stored.get("expiry"))
 
-    # Discover devices — gets static properties + initial capability values
+    # Discover devices: gets static properties + initial capability values
     devices = await hub.async_discover_devices()
     if not devices:
         _LOGGER.warning("No Sirius devices discovered")
@@ -71,7 +74,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry_id = entry.entry_id
 
-    # Coordinator — sends getStatus heartbeat every 5 min
+    # Coordinator: sends getStatus heartbeat every 5 min
     async def _async_update_data() -> dict[str, dict[str, Any]]:
         """Heartbeat: send getStatus for all devices in parallel."""
         _LOGGER.debug("Coordinator update for %d device(s)", len(device_states))
@@ -79,7 +82,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             *[hub.async_get_status(did) for did in device_states],
             return_exceptions=True,
         )
-        for device_id, result in zip(list(device_states), results):
+        for device_id, result in zip(list(device_states), results, strict=False):
             if isinstance(result, SiriusAuthError):
                 _LOGGER.warning(
                     "Auth failed for device %s, requesting reauth", device_id
@@ -87,7 +90,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 hass.async_create_task(hass.config_entries.async_start_reauth(entry_id))
                 return dict(device_states)
             if isinstance(result, Exception):
-                _LOGGER.exception("getStatus failed for device %s", device_id)
+                _LOGGER.error("getStatus failed for device %s", device_id)
         return dict(device_states)
 
     coordinator = DataUpdateCoordinator(
@@ -98,7 +101,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         update_interval=timedelta(seconds=GET_STATUS_INTERVAL),
     )
 
-    # MQTT status callback — called from paho-mqtt background thread.
+    # MQTT status callback: called from paho-mqtt background thread.
     # All device_states access happens on the HA event loop to avoid concurrent
     # reads/writes from both the paho thread and the coordinator.
     def _on_mqtt_status(device_id: str, payload: dict[str, Any]) -> None:
@@ -135,18 +138,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "MQTT connected" if mqtt_connected else "MQTT offline",
     )
 
-    # Proactive token refresh — refresh 1 minute before expiry so API calls
+    # Proactive token refresh: refresh 1 minute before expiry so API calls
     # never have to wait for a login round-trip.
-    async def _refresh_token(now: datetime | None = None) -> None:
+    async def _refresh_token(now: datetime | None = None) -> None:  # noqa: ARG001
         """Refresh the auth token before it expires."""
         try:
             await hub.async_ensure_token()
         except Exception:
             _LOGGER.exception("Failed to refresh auth token")
-        if hub._token_expiry:
-            remaining = (
-                hub._token_expiry - datetime.now(timezone.utc)
-            ).total_seconds() - 60
+        if hub.token_expiry:
+            remaining = (hub.token_expiry - datetime.now(UTC)).total_seconds() - 60
             if remaining > 0:
                 entry.async_on_unload(async_call_later(hass, remaining, _refresh_token))
 

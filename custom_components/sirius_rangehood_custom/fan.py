@@ -1,13 +1,11 @@
+# Copyright (c) 2026 Warren Spits
 """Fan platform for Sirius Rangehood."""
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.fan import FanEntity, FanEntityFeature
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import (
     CAP_FAN_SPEED,
@@ -20,6 +18,12 @@ from .api import (
 )
 from .const import DOMAIN
 from .entity import SiriusEntity, sirius_device_info
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+    from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 
 async def async_setup_entry(
@@ -51,11 +55,12 @@ class SiriusRangehoodFan(SiriusEntity, FanEntity):
 
     def __init__(
         self,
-        coordinator,
+        coordinator: DataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         entry: ConfigEntry,
     ) -> None:
+        """Initialize the fan entity."""
         super().__init__(coordinator)
         self._device_id = device_id
         self._entry_id = entry.entry_id
@@ -64,12 +69,14 @@ class SiriusRangehoodFan(SiriusEntity, FanEntity):
 
     @property
     def is_on(self) -> bool | None:
+        """Return True when the fan is running (speed greater than 0)."""
         state = self._get_device_state()
         speed = state.get(CAP_FAN_SPEED, FAN_SPEED_OFF)
         return isinstance(speed, (int, float)) and speed > 0
 
     @property
     def percentage(self) -> int | None:
+        """Return the current fan speed as a percentage."""
         state = self._get_device_state()
         speed = state.get(CAP_FAN_SPEED, FAN_SPEED_OFF)
         if isinstance(speed, (int, float)):
@@ -77,6 +84,7 @@ class SiriusRangehoodFan(SiriusEntity, FanEntity):
         return None
 
     async def async_set_percentage(self, percentage: int) -> None:
+        """Set the fan speed from a percentage (nearest of 0/25/50/75/100)."""
         speed = min(PERCENTAGE_TO_SPEED.items(), key=lambda x: abs(x[0] - percentage))[
             1
         ]
@@ -85,18 +93,21 @@ class SiriusRangehoodFan(SiriusEntity, FanEntity):
     async def async_turn_on(
         self,
         percentage: int | None = None,
-        preset_mode: str | None = None,
-        **kwargs: Any,
+        preset_mode: str | None = None,  # noqa: ARG002
+        **kwargs: Any,  # noqa: ARG002
     ) -> None:
+        """Turn the fan on, optionally at a given percentage."""
         if percentage is not None:
             await self.async_set_percentage(percentage)
         else:
             await self._async_send_command(CAP_FAN_SPEED, FAN_SPEED_LOW)
 
-    async def async_turn_off(self, **kwargs: Any) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:  # noqa: ARG002
+        """Turn the fan off."""
         await self._async_send_command(CAP_FAN_SPEED, FAN_SPEED_OFF)
 
     async def _async_send_command(self, capability_id: str, value: float) -> None:
+        """Send a single-capability setValue command via the hub."""
         data = self.hass.data[DOMAIN][self._entry_id]
         hub = data["hub"]
         try:

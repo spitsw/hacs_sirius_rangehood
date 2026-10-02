@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Warren Spits
 """MQTTS client for receiving real-time status from Sirius devices."""
 
 from __future__ import annotations
@@ -16,6 +17,9 @@ _LOGGER = logging.getLogger(__name__)
 
 StatusCallback = Callable[[str, dict[str, Any]], None]  # device_id, payload
 
+_TOPIC_ERRORS = (ValueError, IndexError)
+_JSON_ERRORS = (json.JSONDecodeError, UnicodeDecodeError)
+
 
 class SiriusMQTT:
     """Manages a MQTTS connection to the Sirius server."""
@@ -29,8 +33,10 @@ class SiriusMQTT:
         username: str,
         password: str,
         status_callback: StatusCallback | None = None,
+        *,
         insecure_tls: bool = False,
     ) -> None:
+        """Parse the broker endpoint and store connection details."""
         self._username = username
         self._password = password
         self._status_callback = status_callback
@@ -42,7 +48,23 @@ class SiriusMQTT:
         self._host = parsed.hostname or "localhost"
         self._port = parsed.port or self._DEFAULT_PORT
 
-    def _on_connect(self, _client, _userdata, _flags, rc) -> None:
+    @property
+    def connected(self) -> bool:
+        """Return True when the client is connected to the broker."""
+        return bool(self._client and self._client.is_connected())
+
+    @property
+    def host(self) -> str:
+        """Return the broker host."""
+        return self._host
+
+    def _on_connect(
+        self,
+        _client: mqtt.Client,
+        _userdata: Any,
+        _flags: Any,
+        rc: int,
+    ) -> None:
         """Handle connection events."""
         if rc == 0:
             _LOGGER.info("MQTT connected to %s", self._host)
@@ -51,28 +73,38 @@ class SiriusMQTT:
         else:
             _LOGGER.error("MQTT connection failed (rc=%d)", rc)
 
-    def _on_disconnect(self, _client, _userdata, rc) -> None:
+    def _on_disconnect(
+        self,
+        _client: mqtt.Client,
+        _userdata: Any,
+        rc: int,
+    ) -> None:
         """Handle disconnection."""
         _LOGGER.warning("MQTT disconnected (rc=%d), reconnecting...", rc)
 
-    def _on_message(self, _client, _userdata, msg) -> None:
+    def _on_message(
+        self,
+        _client: mqtt.Client,
+        _userdata: Any,
+        msg: mqtt.MQTTMessage,
+    ) -> None:
         """Handle incoming MQTT messages."""
         topic = msg.topic
         try:
             raw = json.loads(msg.payload.decode("utf-8"))
-        except (json.JSONDecodeError, UnicodeDecodeError) as err:
+        except _JSON_ERRORS as err:
             _LOGGER.warning("Invalid MQTT payload on %s: %s", topic, err)
             return
 
         payload = raw if isinstance(raw, dict) else {}
         values_list = payload.pop("values", [])
 
-        # device ID is always in the topic path:
-        #   .../devices/{device_id}/status
+        # The device ID is always the path segment after "devices" in the
+        # topic (root/codermine/devices/{device_id}/status).
         parts = topic.split("/")
         try:
             device_id = parts[parts.index("devices") + 1]
-        except (ValueError, IndexError):
+        except _TOPIC_ERRORS:
             _LOGGER.debug(
                 "MQTT message on %s: could not extract device ID from topic", topic
             )
@@ -97,7 +129,7 @@ class SiriusMQTT:
         self._client.reconnect_delay_set(min_delay=1, max_delay=120)
 
         try:
-            # Build TLS context and connect — all blocking I/O, run in executor
+            # Build TLS context and connect: all blocking I/O, run in executor
             def _connect() -> None:
                 ctx = ssl.create_default_context()
                 ctx.check_hostname = False
@@ -117,18 +149,15 @@ class SiriusMQTT:
             # fire again. Subscribe upfront.
             for device_id in self._subscribed_devices:
                 self._subscribe_device(device_id)
+        except OSError:
+            _LOGGER.exception("MQTT connection to %s:%d failed", self._host, self._port)
+            return False
+        except Exception:
+            _LOGGER.exception("MQTT connection to %s:%d failed", self._host, self._port)
+            return False
+        else:
             _LOGGER.info("MQTT connected to %s:%d", self._host, self._port)
             return True
-        except (OSError, ConnectionError) as err:
-            _LOGGER.error(
-                "MQTT connection to %s:%d failed: %s", self._host, self._port, err
-            )
-            return False
-        except Exception as err:  # noqa: BLE001
-            _LOGGER.error(
-                "MQTT connection to %s:%d failed: %s", self._host, self._port, err
-            )
-            return False
 
     async def async_stop(self) -> None:
         """Disconnect the MQTT client."""

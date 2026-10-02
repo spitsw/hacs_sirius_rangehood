@@ -1,13 +1,11 @@
+# Copyright (c) 2026 Warren Spits
 """Number platform for Sirius Rangehood timer control."""
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.number import NumberEntity
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import (
     CAP_TIMER_ACTIVE,
@@ -17,12 +15,19 @@ from .api import (
 from .const import DOMAIN
 from .entity import SiriusEntity, sirius_device_info
 
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+    from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    """Set up the number platform."""
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator = data["coordinator"]
     devices = data["devices"]
@@ -43,11 +48,12 @@ class SiriusRangehoodTimer(SiriusEntity, NumberEntity):
 
     def __init__(
         self,
-        coordinator,
+        coordinator: DataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         entry: ConfigEntry,
     ) -> None:
+        """Initialize the timer duration entity."""
         super().__init__(coordinator)
         self._device_id = device_id
         self._entry_id = entry.entry_id
@@ -61,6 +67,7 @@ class SiriusRangehoodTimer(SiriusEntity, NumberEntity):
 
     @property
     def native_value(self) -> float | None:
+        """Return the configured timer duration in seconds."""
         state = self._get_device_state()
         val = state.get(CAP_TIMER_VALUE)
         if val is not None:
@@ -68,10 +75,12 @@ class SiriusRangehoodTimer(SiriusEntity, NumberEntity):
         return None
 
     async def async_set_native_value(self, value: float) -> None:
+        """Set the timer duration in seconds."""
         await self._async_send_command([{"id": CAP_TIMER_VALUE, "value": int(value)}])
 
     @property
     def available(self) -> bool:
+        """Return True when the timer duration can be changed."""
         state = self._get_device_state()
         return bool(state.get(CAP_TIMER_MODIFIABLE, False)) and not bool(
             state.get(CAP_TIMER_ACTIVE, False)

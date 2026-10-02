@@ -8,7 +8,7 @@ from custom_components.sirius_rangehood_custom.api.hub import SiriusAuthError, S
 class TestFlattenDevice:
     """Verify _flatten_device processes API responses correctly."""
 
-    def test_flatten_basic(self):
+    def test_flatten_basic(self) -> None:
         """Should flatten properties and capabilities into one dict."""
         raw = {
             "id": 1,
@@ -41,7 +41,7 @@ class TestFlattenDevice:
         assert "_limits" in flat
         assert flat["_limits"]["device.fanSpeed"] == {"min": 0.0, "max": 4.0}
 
-    def test_flatten_uses_device_name_property(self):
+    def test_flatten_uses_device_name_property(self) -> None:
         """Should use property.device_name as display name if present."""
         raw = {
             "id": 2,
@@ -56,7 +56,7 @@ class TestFlattenDevice:
         flat = hub._flatten_device(raw)
         assert flat["name"] == "Kitchen Rangehood"
 
-    def test_flatten_no_properties(self):
+    def test_flatten_no_properties(self) -> None:
         """Should handle devices with no properties or capabilities."""
         raw = {
             "id": 3,
@@ -70,7 +70,7 @@ class TestFlattenDevice:
         assert flat["id"] == 3
         assert flat["uid"] == "uid-3"
 
-    def test_flatten_missing_optional_fields(self):
+    def test_flatten_missing_optional_fields(self) -> None:
         """Should handle missing uid gracefully."""
         raw = {
             "id": 4,
@@ -87,11 +87,12 @@ class TestFlattenDevice:
 class TestSiriusAuthError:
     """Verify SiriusAuthError is raiseable and catchable."""
 
-    def test_is_exception(self):
+    def test_is_exception(self) -> None:
         assert issubclass(SiriusAuthError, Exception)
 
-    def test_can_be_raised_and_caught(self):
+    def test_can_be_raised_and_caught(self) -> None:
         try:
-            raise SiriusAuthError("test")
+            msg = "test"
+            raise SiriusAuthError(msg)
         except SiriusAuthError:
             assert True

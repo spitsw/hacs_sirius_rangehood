@@ -1,8 +1,9 @@
+# Copyright (c) 2026 Warren Spits
 """Light platform for Sirius Rangehood."""
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
@@ -10,9 +11,6 @@ from homeassistant.components.light import (
     ColorMode,
     LightEntity,
 )
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import (
     CAP_LIGHT_BRIGHTNESS,
@@ -26,12 +24,19 @@ from .api import (
 from .const import DOMAIN
 from .entity import SiriusEntity, sirius_device_info
 
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+    from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    """Set up the light platform."""
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator = data["coordinator"]
     devices = data["devices"]
@@ -53,11 +58,12 @@ class SiriusRangehoodLight(SiriusEntity, LightEntity):
 
     def __init__(
         self,
-        coordinator,
+        coordinator: DataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         entry: ConfigEntry,
     ) -> None:
+        """Initialize the light entity."""
         super().__init__(coordinator)
         self._device_id = device_id
         self._entry_id = entry.entry_id
@@ -66,12 +72,14 @@ class SiriusRangehoodLight(SiriusEntity, LightEntity):
 
     @property
     def is_on(self) -> bool | None:
+        """Return True when the light is on."""
         state = self._get_device_state()
         val = state.get(CAP_LIGHT_ONOFF)
         return bool(val) if val is not None else None
 
     @property
     def brightness(self) -> int | None:
+        """Return the light brightness on the Home Assistant 0-255 scale."""
         state = self._get_device_state()
         val = state.get(CAP_LIGHT_BRIGHTNESS)
         if val is not None:
@@ -85,6 +93,7 @@ class SiriusRangehoodLight(SiriusEntity, LightEntity):
 
     @property
     def color_temp_kelvin(self) -> int | None:
+        """Return the light colour temperature in Kelvin."""
         state = self._get_device_state()
         val = state.get(CAP_LIGHT_COLOR_TEMP)
         if val is not None:
@@ -92,6 +101,7 @@ class SiriusRangehoodLight(SiriusEntity, LightEntity):
         return None
 
     async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn the light on, applying brightness and colour temperature if given."""
         params = []
         has_attr = False
 
@@ -126,5 +136,6 @@ class SiriusRangehoodLight(SiriusEntity, LightEntity):
             return
         await self._async_send_command(params)
 
-    async def async_turn_off(self, **kwargs: Any) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:  # noqa: ARG002
+        """Turn the light off."""
         await self._async_send_command([{"id": CAP_LIGHT_ONOFF, "value": 0.0}])

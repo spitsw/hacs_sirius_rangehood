@@ -1,13 +1,11 @@
+# Copyright (c) 2026 Warren Spits
 """Switch platform for Sirius Rangehood."""
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import (
     CAP_BI_POWER_ENABLED,
@@ -19,12 +17,19 @@ from .api import (
 from .const import DOMAIN
 from .entity import SiriusEntity, sirius_device_info
 
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+    from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    """Set up the switch platform."""
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator = data["coordinator"]
     devices = data["devices"]
@@ -47,11 +52,12 @@ class SiriusRangehoodPowerSwitch(SiriusEntity, SwitchEntity):
 
     def __init__(
         self,
-        coordinator,
+        coordinator: DataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         entry: ConfigEntry,
     ) -> None:
+        """Initialize the global power switch."""
         super().__init__(coordinator)
         self._device_id = device_id
         self._entry_id = entry.entry_id
@@ -61,6 +67,7 @@ class SiriusRangehoodPowerSwitch(SiriusEntity, SwitchEntity):
 
     @property
     def is_on(self) -> bool | None:
+        """Return True when the device is powered on."""
         state = self._get_device_state()
         val = state.get(CAP_POWER)
         if val is not None:
@@ -69,12 +76,15 @@ class SiriusRangehoodPowerSwitch(SiriusEntity, SwitchEntity):
 
     @property
     def icon(self) -> str:
+        """Return the power icon reflecting the current state."""
         return "mdi:power" if self.is_on else "mdi:power-off"
 
-    async def async_turn_on(self, **kwargs: Any) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:  # noqa: ARG002
+        """Power the device on."""
         await self._async_send_command([{"id": CAP_POWER, "value": 1.0}])
 
-    async def async_turn_off(self, **kwargs: Any) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:  # noqa: ARG002
+        """Power the device off."""
         await self._async_send_command([{"id": CAP_POWER, "value": 0.0}])
 
 
@@ -85,11 +95,12 @@ class SiriusRangehoodBiPowerSwitch(SiriusEntity, SwitchEntity):
 
     def __init__(
         self,
-        coordinator,
+        coordinator: DataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         entry: ConfigEntry,
     ) -> None:
+        """Initialize the bi-power switch."""
         super().__init__(coordinator)
         self._device_id = device_id
         self._entry_id = entry.entry_id
@@ -98,6 +109,7 @@ class SiriusRangehoodBiPowerSwitch(SiriusEntity, SwitchEntity):
 
     @property
     def is_on(self) -> bool | None:
+        """Return True when bi-power mode is enabled."""
         state = self._get_device_state()
         val = state.get(CAP_BI_POWER_ENABLED)
         if val is not None:
@@ -106,27 +118,31 @@ class SiriusRangehoodBiPowerSwitch(SiriusEntity, SwitchEntity):
 
     @property
     def icon(self) -> str:
+        """Return the bi-power icon reflecting the current state."""
         return "mdi:power-plug-battery" if self.is_on else "mdi:power-plug"
 
-    async def async_turn_on(self, **kwargs: Any) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:  # noqa: ARG002
+        """Enable bi-power mode."""
         await self._async_send_command([{"id": CAP_BI_POWER_ENABLED, "value": 1.0}])
 
-    async def async_turn_off(self, **kwargs: Any) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:  # noqa: ARG002
+        """Disable bi-power mode."""
         await self._async_send_command([{"id": CAP_BI_POWER_ENABLED, "value": 0.0}])
 
 
 class SiriusRangehoodTimerSwitch(SiriusEntity, SwitchEntity):
-    """Timer on/off — starts and stops the countdown timer."""
+    """Timer on/off; starts and stops the countdown timer."""
 
     _attr_translation_key = "timer_active"
 
     def __init__(
         self,
-        coordinator,
+        coordinator: DataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         entry: ConfigEntry,
     ) -> None:
+        """Initialize the timer active switch."""
         super().__init__(coordinator)
         self._device_id = device_id
         self._entry_id = entry.entry_id
@@ -135,6 +151,7 @@ class SiriusRangehoodTimerSwitch(SiriusEntity, SwitchEntity):
 
     @property
     def is_on(self) -> bool | None:
+        """Return True when the countdown timer is running."""
         state = self._get_device_state()
         val = state.get(CAP_TIMER_ACTIVE)
         if val is not None:
@@ -143,13 +160,16 @@ class SiriusRangehoodTimerSwitch(SiriusEntity, SwitchEntity):
 
     @property
     def available(self) -> bool:
+        """Return True when the timer can be started or stopped."""
         state = self._get_device_state()
         return bool(state.get(CAP_TIMER_ENABLE, False)) and bool(
             state.get(CAP_TIMER_VALUE, 0)
         )
 
-    async def async_turn_on(self, **kwargs: Any) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:  # noqa: ARG002
+        """Start the countdown timer."""
         await self._async_send_command([{"id": CAP_TIMER_ACTIVE, "value": 1.0}])
 
-    async def async_turn_off(self, **kwargs: Any) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:  # noqa: ARG002
+        """Stop the countdown timer."""
         await self._async_send_command([{"id": CAP_TIMER_ACTIVE, "value": 0.0}])

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Warren Spits
 """Shared entity base for Sirius Rangehood entities."""
 
 from __future__ import annotations

@@ -1,14 +1,16 @@
+# Copyright (c) 2026 Warren Spits
 """Diagnostics platform for Sirius Rangehood."""
 
 from __future__ import annotations
 
-from typing import Any
-
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceEntry
+from typing import TYPE_CHECKING, Any
 
 from .const import DOMAIN
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.device_registry import DeviceEntry
 
 
 async def async_get_config_entry_diagnostics(
@@ -40,16 +42,14 @@ async def async_get_config_entry_diagnostics(
             "last_update_success": coordinator.last_update_success,
         },
         "hub": {
-            "endpoint": hub._sirius_endpoint,
+            "endpoint": hub.endpoint,
             "token_expiry": (
-                hub._token_expiry.isoformat() if hub._token_expiry else None
+                hub.token_expiry.isoformat() if hub.token_expiry else None
             ),
         },
         "mqtt": {
-            "connected": mqtt._client.is_connected()
-            if mqtt and mqtt._client
-            else False,
-            "host": mqtt._host if mqtt else None,
+            "connected": mqtt.connected if mqtt else False,
+            "host": mqtt.host if mqtt else None,
         }
         if mqtt
         else None,
@@ -85,8 +85,6 @@ async def async_get_device_diagnostics(
             "last_update_success": data["coordinator"].last_update_success,
         },
         "hub": {
-            "token_expiry": hub._token_expiry.isoformat()
-            if hub._token_expiry
-            else None,
+            "token_expiry": hub.token_expiry.isoformat() if hub.token_expiry else None,
         },
     }

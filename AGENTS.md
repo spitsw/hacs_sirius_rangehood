@@ -127,13 +127,12 @@ file follows the same shape: an `async_setup_entry` that loops
 
 ## Non-obvious gotchas
 
-- **Linting is strict.** The config file was previously misspelled
-  (`.ruff.yoml`), so Ruff silently ignored it; it is now corrected to
-  `.ruff.toml`, which activates `select = ["ALL"]`. The existing codebase does
-  **not** yet satisfy that config — `ruff check .` currently reports ~328
-  violations (e.g. `S101`, `ANN201`, `D102`, `CPY001`, `TC002`) and two files
-  need reformatting, so `ruff check .` / `ruff format . --check` fail until
-  those are fixed or the config's `ignore`/`per-file-ignores` is widened.
+- **Linting is strict.** `.ruff.toml` (corrected from a previously misspelled
+  `.ruff.yoml`) activates `select = ["ALL"]`, so source must stay lint-clean:
+  `ruff check .` and `ruff format . --check` both pass today and are exactly
+  what CI runs. Tests are exempted from the test-hostile rules via
+  `[lint.per-file-ignores]` (`S101`, `ANN`, `D`, `CPY001`, `PLR2004`,
+  `SLF001`, ...). Keep both commands green when adding code.
 - **`tests/conftest.py` hardcodes `sys.path.insert(0, "/home/warren/dev")`.**
   Tests only work from this exact checkout path.
 - **Tests do not run a real Home Assistant.** The root `conftest.py`

@@ -1,19 +1,17 @@
+# Copyright (c) 2026 Warren Spits
 """Sensor platform for Sirius Rangehood diagnostics."""
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import (
     CAP_FILTER_VALUE,
@@ -32,6 +30,12 @@ from .api import (
 )
 from .const import DOMAIN
 from .entity import SiriusEntity, sirius_device_info
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+    from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
@@ -107,6 +111,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    """Set up the sensor platform."""
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator = data["coordinator"]
     devices = data["devices"]
@@ -114,10 +119,10 @@ async def async_setup_entry(
     entities = []
     for device in devices:
         did = device.get("uid", str(device["id"]))
-        for desc in SENSOR_DESCRIPTIONS:
-            entities.append(
-                SiriusRangehoodSensor(coordinator, did, device, entry, desc)
-            )
+        entities.extend(
+            SiriusRangehoodSensor(coordinator, did, device, entry, desc)
+            for desc in SENSOR_DESCRIPTIONS
+        )
         entities.append(SiriusRangehoodFilterCountdown(coordinator, did, device, entry))
         if CAP_TIMER_ENABLE in device.get("_limits", {}):
             entities.append(
@@ -131,12 +136,13 @@ class SiriusRangehoodSensor(SiriusEntity, SensorEntity):
 
     def __init__(
         self,
-        coordinator,
+        coordinator: DataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         entry: ConfigEntry,
         description: SensorEntityDescription,
     ) -> None:
+        """Initialize the diagnostic sensor."""
         super().__init__(coordinator)
         self._device_id = device_id
         self._entry_id = entry.entry_id
@@ -146,6 +152,7 @@ class SiriusRangehoodSensor(SiriusEntity, SensorEntity):
 
     @property
     def native_value(self) -> str | int | float | None:
+        """Return the raw device value for the described key."""
         return self._get_device_state().get(self.entity_description.key)
 
 
@@ -158,11 +165,12 @@ class SiriusRangehoodFilterCountdown(SiriusEntity, SensorEntity):
 
     def __init__(
         self,
-        coordinator,
+        coordinator: DataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         entry: ConfigEntry,
     ) -> None:
+        """Initialize the filter countdown sensor."""
         super().__init__(coordinator)
         self._device_id = device_id
         self._entry_id = entry.entry_id
@@ -171,6 +179,7 @@ class SiriusRangehoodFilterCountdown(SiriusEntity, SensorEntity):
 
     @property
     def native_value(self) -> float | None:
+        """Return the remaining filter life in hours."""
         state = self._get_device_state()
         val = state.get(CAP_FILTER_VALUE)
         if val is not None:
@@ -186,11 +195,12 @@ class SiriusRangehoodTimerOffTime(SiriusEntity, SensorEntity):
 
     def __init__(
         self,
-        coordinator,
+        coordinator: DataUpdateCoordinator,
         device_id: str,
         device: dict[str, Any],
         entry: ConfigEntry,
     ) -> None:
+        """Initialize the timer turn-off-time sensor."""
         super().__init__(coordinator)
         self._device_id = device_id
         self._entry_id = entry.entry_id
@@ -199,9 +209,10 @@ class SiriusRangehoodTimerOffTime(SiriusEntity, SensorEntity):
 
     @property
     def native_value(self) -> datetime | None:
+        """Return the moment the timer will turn the device off."""
         state = self._get_device_state()
         active = state.get(CAP_TIMER_ACTIVE)
         remaining = state.get(CAP_TIMER_VALUE)
         if active and remaining is not None:
-            return datetime.now(timezone.utc) + timedelta(seconds=float(remaining))
+            return datetime.now(UTC) + timedelta(seconds=float(remaining))
         return None

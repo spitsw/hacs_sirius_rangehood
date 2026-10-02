@@ -1,4 +1,6 @@
-"""Sirius Rangehood API client library.
+# Copyright (c) 2026 Warren Spits
+"""
+Sirius Rangehood API client library.
 
 This package contains all HTTP and MQTT code that communicates with the
 Sirius cloud server.  The HA layer imports what it needs from here and

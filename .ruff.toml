@@ -15,6 +15,23 @@ ignore = [
     "ISC001", # incompatible with formatter
 ]
 
+[lint.per-file-ignores]
+# Tests exercise private members directly, assert freely, and favour terse
+# fixtures over annotations/docstrings.
+"tests/**" = [
+    "ANN", # no type annotations required in tests
+    "ARG005", # unused lambda args are common in mock callbacks
+    "CPY001", # tests are not distributed, so no copyright header
+    "D", # no docstrings required in tests
+    "ERA001", # commented-out code is used as explanatory context
+    "INP001", # tests are not a package
+    "PLR2004", # magic values are fine in assertions
+    "S101", # tests assert
+    "S105", # "password" literals appear in fixtures
+    "SLF001", # tests exercise private members directly
+    "TRY301", # raise-inside-try is fine in test helpers
+]
+
 [lint.flake8-pytest-style]
 fixture-parentheses = false
 

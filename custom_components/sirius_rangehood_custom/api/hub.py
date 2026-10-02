@@ -1,16 +1,16 @@
+# Copyright (c) 2026 Warren Spits
 """HTTP API client for the Sirius server."""
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import uuid
-from collections.abc import Callable, Coroutine
-from datetime import datetime, timedelta, timezone
-from typing import Any, TypeVar
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
-from homeassistant.helpers.storage import Store
 
 from .const import (
     API_DEVICES,
@@ -21,6 +21,11 @@ from .const import (
     VERSION,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
+
+    from homeassistant.helpers.storage import Store
+
 _USER_AGENT = f"HomeAssistant-CustomIntegration-spitsw/{VERSION}"
 _DEVICE_TYPE = "home_assistant"
 
@@ -28,6 +33,11 @@ _LOGGER = logging.getLogger(__name__)
 
 _MAX_RETRIES = 3
 _RETRY_BASE_DELAY = 2.0  # seconds
+
+_HTTP_OK = 200
+_HTTP_UNAUTHORIZED = 401
+
+_NETWORK_ERRORS = (TimeoutError, aiohttp.ClientError)
 
 
 def _auth_headers(token: str) -> dict[str, str]:
@@ -38,14 +48,12 @@ def _auth_headers(token: str) -> dict[str, str]:
     }
 
 
-_T = TypeVar("_T")
-
-
-async def _run_with_retry(
-    coro_factory: Callable[[], Coroutine[Any, Any, _T]],
+async def _run_with_retry[T](
+    coro_factory: Callable[[], Coroutine[Any, Any, T]],
     retries: int = _MAX_RETRIES,
-) -> _T:
-    """Await a coroutine, retrying on timeout and transient HTTP errors.
+) -> T:
+    """
+    Await a coroutine, retrying on timeout and transient HTTP errors.
 
     *coro_factory* is a zero-argument callable that returns a coroutine.
     The first call receives the original timeout; retries use
@@ -55,7 +63,7 @@ async def _run_with_retry(
     for attempt in range(retries):
         try:
             return await coro_factory()
-        except (asyncio.TimeoutError, aiohttp.ClientError) as exc:
+        except _NETWORK_ERRORS as exc:
             last_exc = exc
             _LOGGER.debug(
                 "HTTP request failed (attempt %d/%d): %s", attempt + 1, retries, exc
@@ -74,9 +82,10 @@ class SiriusHub:
         sirius_endpoint: str = "",
         username: str = "",
         password: str = "",
-        store: Store | None = None,
+        *,
         insecure_tls: bool = False,
     ) -> None:
+        """Initialize the hub, creating its own session when TLS is relaxed."""
         self._insecure_tls = insecure_tls
         if insecure_tls:
             self._session = aiohttp.ClientSession(
@@ -87,18 +96,28 @@ class SiriusHub:
         self._sirius_endpoint = sirius_endpoint.rstrip("/")
         self._username = username
         self._password = password
-        self._store = store
+        self._store: Store | None = None
         self._token: str | None = None
         self._token_expiry: datetime | None = None
         self._lock = asyncio.Lock()
 
-    async def async_ensure_token(self, retry: bool = True) -> str:
+    @property
+    def endpoint(self) -> str:
+        """Return the configured Sirius REST endpoint."""
+        return self._sirius_endpoint
+
+    @property
+    def token_expiry(self) -> datetime | None:
+        """Return the current token expiry, if a token is held."""
+        return self._token_expiry
+
+    async def async_ensure_token(self, *, retry: bool = True) -> str:
         """Return a valid token, refreshing or logging in if needed."""
         async with self._lock:
             if (
                 self._token
                 and self._token_expiry
-                and self._token_expiry > datetime.now(timezone.utc)
+                and self._token_expiry > datetime.now(UTC)
             ):
                 return self._token
             return await self._async_login(retry=retry)
@@ -116,7 +135,7 @@ class SiriusHub:
             except ValueError:
                 self._token_expiry = None
 
-    async def _async_login(self, retry: bool = True) -> str:
+    async def _async_login(self, *, retry: bool = True) -> str:
         """Authenticate and store the token."""
         url = f"{self._sirius_endpoint}{API_LOGIN}"
         payload = {
@@ -134,11 +153,12 @@ class SiriusHub:
                 retries=_MAX_RETRIES if retry else 1,
             ) as resp:
                 data = await resp.json()
-                if resp.status != 200 or not data.get("JWT"):
+                if resp.status != _HTTP_OK or not data.get("JWT"):
                     _LOGGER.error("Login failed (HTTP %d)", resp.status)
-                    raise SiriusAuthError(f"Login failed: {data}")
+                    msg = f"Login failed: {data}"
+                    raise SiriusAuthError(msg)  # noqa: TRY301
                 self._token = data["JWT"]
-                self._token_expiry = datetime.now(timezone.utc) + timedelta(
+                self._token_expiry = datetime.now(UTC) + timedelta(
                     seconds=data.get("expires", 3600)
                 )
                 if self._store:
@@ -152,30 +172,39 @@ class SiriusHub:
                 return self._token
         except SiriusAuthError:
             raise  # never retry a credential rejection
-        except (asyncio.TimeoutError, aiohttp.ClientError):
-            _LOGGER.error("Login request failed%s", " after retries" if retry else "")
+        except _NETWORK_ERRORS:
+            _LOGGER.exception(
+                "Login request failed%s", " after retries" if retry else ""
+            )
             raise
 
-    async def async_discover_devices(self, retry: bool = True) -> list[dict[str, Any]]:
-        """Fetch all devices from the Sirius server and flatten their data.
+    async def async_discover_devices(
+        self, *, retry: bool = True
+    ) -> list[dict[str, Any]]:
+        """
+        Fetch all devices from the Sirius server and flatten their data.
 
-        When *retry* is False (config flow), a single attempt is made —
+        When *retry* is False (config flow), a single attempt is made;
         the caller can resubmit on failure.
         """
         token = await self.async_ensure_token(retry=retry)
         url = f"{self._sirius_endpoint}{API_DEVICES}"
         headers = _auth_headers(token)
-        http_call = lambda: self._session.get(url, headers=headers, timeout=API_TIMEOUT)
+
+        def http_call() -> Any:
+            return self._session.get(url, headers=headers, timeout=API_TIMEOUT)
+
         try:
             async with await _run_with_retry(
                 http_call, retries=_MAX_RETRIES if retry else 1
             ) as resp:
                 data = await resp.json()
-                if resp.status == 401:
+                if resp.status == _HTTP_UNAUTHORIZED:
                     self._token = None
                     self._token_expiry = None
-                    raise SiriusAuthError("JWT rejected by /devices/")
-                if resp.status != 200:
+                    msg = "JWT rejected by /devices/"
+                    raise SiriusAuthError(msg)  # noqa: TRY301
+                if resp.status != _HTTP_OK:
                     _LOGGER.error("Failed to discover devices (HTTP %d)", resp.status)
                     return []
                 raw_devices = (
@@ -194,8 +223,8 @@ class SiriusHub:
                 return result
         except SiriusAuthError:
             raise
-        except (asyncio.TimeoutError, aiohttp.ClientError):
-            _LOGGER.error(
+        except _NETWORK_ERRORS:
+            _LOGGER.exception(
                 "Device discovery failed%s", " after retries" if retry else ""
             )
             return []
@@ -215,7 +244,7 @@ class SiriusHub:
         limits: dict[str, dict[str, float]] = {}
         for cap in device.get("capabilities", []):
             uid = cap["capabilityUid"]
-            # Do NOT store flat[uid] = cap["value"] — the capabilities array
+            # Do NOT store flat[uid] = cap["value"]: the capabilities array
             # carries default/placeholder values, not live device state.
             # Live state arrives via MQTT after a getStatus command.
             limits[uid] = {
@@ -228,8 +257,6 @@ class SiriusHub:
         device_name = flat.get("property.device_name")
         if device_name:
             flat["name"] = device_name
-
-        return flat
 
         return flat
 
@@ -279,20 +306,19 @@ class SiriusHub:
                     url, json=payload, headers=headers, timeout=API_TIMEOUT
                 )
             ) as resp:
-                if resp.status == 401:
+                if resp.status == _HTTP_UNAUTHORIZED:
                     self._token = None
                     self._token_expiry = None
-                    raise SiriusAuthError("JWT rejected by set_value")
+                    msg = "JWT rejected by set_value"
+                    raise SiriusAuthError(msg)  # noqa: TRY301
 
                 data = None
-                try:
-                    data = await resp.json()
-                except aiohttp.ContentTypeError:
+                with contextlib.suppress(aiohttp.ContentTypeError):
                     # Server may return a non-JSON response (e.g. empty body
-                    # with 2xx) — the command was still processed.
-                    pass
+                    # with 2xx); the command was still processed.
+                    data = await resp.json()
 
-                if resp.status != 200:
+                if resp.status != _HTTP_OK:
                     _LOGGER.error(
                         "set_value failed for device %s (HTTP %d)",
                         device_id,
@@ -303,8 +329,8 @@ class SiriusHub:
                 return data
         except SiriusAuthError:
             raise
-        except asyncio.TimeoutError:
-            _LOGGER.error("set_value timed out for %s after retries", device_id)
+        except TimeoutError:
+            _LOGGER.exception("set_value timed out for %s after retries", device_id)
             return None
         except aiohttp.ClientError:
             _LOGGER.warning(
