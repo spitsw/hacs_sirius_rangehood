@@ -29,6 +29,11 @@ choose **Configure custom endpoints** after logging in.
 **Sensors** show IP address, WiFi signal strength, firmware version,
 filter life, filter worn alert, and estimated turn-off time.
 
+Live values are pushed from the Sirius cloud over MQTT. If that connection
+drops, entities become **Unavailable** after about 30 seconds and a
+**Repairs** notification ("Sirius Rangehood MQTT connection lost") appears;
+both clear automatically once the broker is reachable again.
+
 ---
 
 ## Installation
@@ -76,12 +81,15 @@ If your credentials change or you need to update endpoints:
 | "Invalid authentication" | Check your password in the Sirius mobile app first |
 | "No devices found" | Login worked, but no rangehood is linked to your account |
 | Entities show "unknown" | Wait up to 30 seconds — the first status update arrives via MQTT |
+| Entities show "Unavailable" | The cloud MQTT broker is unreachable. Check **Settings → System → Repairs** and confirm outbound port 8884 is allowed; it reconnects automatically |
 | Entities don't update | Check HA logs for "MQTT" errors. Network or firewall may block port 8884 |
 | Re-auth prompt | Token expired — re-enter your password when prompted |
 
-To enable more detailed logs, open **Settings → Devices & Services →
-Sirius Rangehood → Enable debug logging** (the integration declares a
-`loggers` entry, so no YAML is required). To do it in YAML instead:
+### Debug logging
+
+Enable it from the UI: **Settings → Devices & Services → Sirius Rangehood →
+Enable debug logging** — the integration declares a `loggers` entry, so no YAML
+is required. To configure it in YAML instead:
 
 ```yaml
 logger:
