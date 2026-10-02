@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.switch import SwitchEntity
+from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
 
 from .api import (
     CAP_BI_POWER_ENABLED,
@@ -92,6 +92,7 @@ class SiriusRangehoodBiPowerSwitch(SiriusEntity, SwitchEntity):
     """Enable extra airflow and powerful extraction."""
 
     _attr_translation_key = "bi_power"
+    _attr_device_class = SwitchDeviceClass.SWITCH
 
     def __init__(
         self,
@@ -115,11 +116,6 @@ class SiriusRangehoodBiPowerSwitch(SiriusEntity, SwitchEntity):
         if val is not None:
             return bool(val)
         return None
-
-    @property
-    def icon(self) -> str:
-        """Return the bi-power icon reflecting the current state."""
-        return "mdi:power-plug-battery" if self.is_on else "mdi:power-plug"
 
     async def async_turn_on(self, **kwargs: Any) -> None:  # noqa: ARG002
         """Enable bi-power mode."""
