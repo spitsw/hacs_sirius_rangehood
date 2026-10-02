@@ -182,26 +182,29 @@ if remaining > 0:
 
 ---
 
-## ADR-7: Discovery via MQTT unknown-UID reload
+## ADR-7: Discovery via `/devices/` at setup time only
 
 **Status**: Accepted
 
-**Context**: Sirius devices can appear or disappear at any time (new
-rangehood paired, existing one unpaired). The component only discovers
-devices once, at setup time.
+**Context**: The `/devices/` API returns all devices registered to the
+account at setup time. Device discovery is a one-time operation.
 
-**Decision**: When an MQTT status message arrives for a UID that is not
-in the current `device_states` dict, reload the config entry so the new
-entities appear. No periodic `/devices/` poll is needed — with 1–3
-devices, discovery is rare, and MQTT is the primary channel for all
-device activity.
+**Decision**: Devices are discovered once during `async_setup_entry`
+via the `/devices/` API. No periodic polling is performed. MQTT
+subscriptions are created for each discovered device's specific topic
+(`.../devices/{uid}/status`), so messages from unknown devices are
+never received.
+
+If a new rangehood is paired to the account after initial setup, the
+user must reconfigure the integration (**Settings → Devices & Services
+→ Sirius Rangehood → Configure**) to trigger a fresh discovery.
 
 **Consequences**:
-- New devices are detected within seconds (when they first publish via
-  MQTT), not up to an hour later.
-- Config entry reload is heavyweight but negligible at 1–3 devices.
-- No mechanism yet to handle device removal — a removed device must be
-  manually deleted from HA.
+- New devices are not discovered automatically — reconfiguration is
+  required.
+- MQTT cannot be used for discovery because topics are device-specific
+  and subscription happens at setup time.
+- This is acceptable for 1–3 devices where pairing is rare.
 
 ---
 
