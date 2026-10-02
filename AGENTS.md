@@ -40,9 +40,18 @@ docker compose up
 
 CI (`.github/workflows/lint.yaml`) runs `python3 -m ruff check .` and
 `python3 -m ruff format . --check`; `.github/workflows/test.yaml` runs
-`python3 -m pytest tests/` and `pyright`. A third workflow (`validate.yaml`)
-runs Hassfest and HACS validation — it checks `manifest.json`,
-`strings.json`/translations, and file structure, so keep those consistent.
+`python3 -m pytest tests/` and `pyright`. `validate.yaml` runs Hassfest and
+HACS validation — it checks `manifest.json`, `strings.json`/translations, and
+file structure, so keep those consistent.
+
+**Releases are automated with `python-semantic-release` (PSR).** `release.yaml`
+runs on every push to `main`: PSR derives the next SemVer from the Conventional
+Commit messages, bumps `version` in **both** `pyproject.toml` and
+`manifest.json` (see `version_toml`/`version_variables` in `pyproject.toml`),
+commits, tags `vX.Y.Z`, and creates the GitHub Release. So **HACS versions off
+the git tag, and the manifest version always matches it** — write Conventional
+Commit messages (`feat:`, `fix:`, `chore:` …) rather than hand-editing versions
+or tagging manually.
 
 ## Version control (Jujutsu)
 
