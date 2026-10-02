@@ -129,11 +129,15 @@ class SiriusHub:
     def restore_token(self, token: str | None, expiry_iso: str | None) -> None:
         """Restore a previously persisted token (used after setup from store)."""
         self._token = token
+        expiry: datetime | None = None
         if expiry_iso:
             try:
-                self._token_expiry = datetime.fromisoformat(expiry_iso)
+                expiry = datetime.fromisoformat(expiry_iso)
             except ValueError:
-                self._token_expiry = None
+                expiry = None
+        if expiry is not None and expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=UTC)
+        self._token_expiry = expiry
 
     async def _async_login(self, *, retry: bool = True) -> str:
         """Authenticate and store the token."""

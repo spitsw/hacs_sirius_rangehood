@@ -96,3 +96,27 @@ class TestSiriusAuthError:
             raise SiriusAuthError(msg)
         except SiriusAuthError:
             assert True
+
+
+class TestRestoreToken:
+    """Verify restored token expiry is normalized to an aware UTC datetime."""
+
+    def test_naive_expiry_becomes_aware(self) -> None:
+        """A timezone-naive stored expiry should be treated as UTC."""
+        hub = SiriusHub.__new__(SiriusHub)
+        hub.restore_token("tok", "2030-01-01T00:00:00")
+        assert hub._token_expiry is not None
+        assert hub._token_expiry.tzinfo is not None
+
+    def test_aware_expiry_preserved(self) -> None:
+        """An expiry that already carries an offset should be kept as-is."""
+        hub = SiriusHub.__new__(SiriusHub)
+        hub.restore_token("tok", "2030-01-01T00:00:00+02:00")
+        assert hub._token_expiry is not None
+        assert hub._token_expiry.utcoffset().total_seconds() == 7200
+
+    def test_invalid_expiry_is_none(self) -> None:
+        """An unparsable expiry should leave the token expiry unset."""
+        hub = SiriusHub.__new__(SiriusHub)
+        hub.restore_token("tok", "not-a-date")
+        assert hub._token_expiry is None
