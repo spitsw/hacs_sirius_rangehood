@@ -69,7 +69,10 @@ async def _run_with_retry[T](
             )
             if attempt < retries - 1:
                 await asyncio.sleep(_RETRY_BASE_DELAY * (2**attempt))
-    raise last_exc  # type: ignore[misc]
+    if last_exc is None:
+        msg = "retries must be at least 1"
+        raise ValueError(msg)
+    raise last_exc
 
 
 class SiriusHub:
