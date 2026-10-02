@@ -9,20 +9,31 @@ Rangehood integration.
 
 **Status**: Accepted
 
-**Context**: The Sirius MQTTS broker presents a valid TLS certificate that
-has expired. Home Assistant's built-in `mqtt` integration does not expose a
-hook to customise certificate validation, so it would reject the connection.
+**Context**: HA's built-in `mqtt` integration is a single global broker
+configuration — only one MQTT connection can exist for the entire HA
+instance. The Sirius rangehood requires a separate MQTT connection to
+`mqtts://sirius.iotpga.it:8884` with its own credentials, subscriptions,
+and message parsing.
 
-**Decision**: Use the `paho-mqtt` library directly with a custom `ssl.SSLContext`
-whose `verify_callback` only skips the expiry check (`X509_V_ERR_CERT_HAS_EXPIRED`
-= errno 10). All other validation (chain of trust, hostname, issuer) still
-applies.
+HA's MQTT integration does support TLS with `tls_insecure: true` (which
+disables certificate hostname validation), so the expired certificate
+alone is not a blocker. However, adding a second MQTT broker via the
+global integration is not supported.
+
+**Decision**: Use the `paho-mqtt` library directly, managing the
+connection lifecycle (`connect`/`loop_start`/`loop_stop`) and TLS
+context independently of HA's infrastructure.
 
 **Consequences**:
-- No dependency on HA's MQTT integration — the component is self-contained.
-- Must manage its own connection lifecycle (`loop_start`/`loop_stop`).
-- If Sirius ever renews their certificate, the custom context will still work
-  (the callback returns `preverify_ok` for all non-expiry errors).
+- No dependency on HA's global MQTT integration — the component
+  works regardless of the user's existing MQTT setup.
+- Full control over TLS configuration: expired certificates, missing
+  root CAs, and the insecure-TLS fallback are all handled internally.
+- Must manage its own connection lifecycle and thread safety via
+  `call_soon_threadsafe`.
+- The `/status` topic subscription and `values[]` payload flattening
+  are handled directly rather than through HA's MQTT platform
+  configuration.
 
 ---
 
