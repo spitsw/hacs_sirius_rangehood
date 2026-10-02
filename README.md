@@ -23,7 +23,6 @@ choose **Configure custom endpoints** after logging in.
 | **Light** | Brightness and colour temperature (warm → cool) |
 | **Timer Duration** | Set countdown in seconds |
 | **Timer Active** | Start / stop the countdown |
-| **Boost Duration** | How long boost mode runs (in seconds) |
 | **Global Power** | Turn fan and light on/off together |
 | **Bi-Power** | Enable extra airflow and powerful extraction (if supported) |
 

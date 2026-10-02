@@ -22,7 +22,6 @@ PROP_IP_ADDRESS = "property.device.network.address"
 # Capability UIDs (from capabilities[].capabilityUid) — live operational data
 CAP_POWER = "device.onOff"
 CAP_FAN_SPEED = "device.fanSpeed"
-CAP_BOOST_VALUE = "device.boostValue"
 CAP_LIGHT_ONOFF = "device.lightOnOff"
 CAP_TIMER_VALUE = "device.timerValue"
 CAP_FILTER_WORN = "device.filter1.worn"
@@ -40,7 +39,6 @@ LIVE_CAPABILITY_KEYS = frozenset(
     {
         CAP_POWER,
         CAP_FAN_SPEED,
-        CAP_BOOST_VALUE,
         CAP_LIGHT_ONOFF,
         CAP_TIMER_VALUE,
         CAP_FILTER_WORN,

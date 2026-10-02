@@ -7,7 +7,6 @@ never makes direct API calls.
 
 from .const import (
     CAP_BI_POWER_ENABLED,
-    CAP_BOOST_VALUE,
     CAP_FAN_SPEED,
     CAP_FILTER_VALUE,
     CAP_FILTER_WORN,
@@ -51,7 +50,6 @@ from .mqtt import SiriusMQTT
 __all__ = [
     "CAP_BI_POWER_ENABLED",
     # Constants
-    "CAP_BOOST_VALUE",
     "CAP_FAN_SPEED",
     "CAP_FILTER_VALUE",
     "CAP_FILTER_WORN",
