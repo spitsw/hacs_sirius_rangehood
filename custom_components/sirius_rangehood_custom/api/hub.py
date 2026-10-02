@@ -254,10 +254,6 @@ class SiriusHub:
 
         flat["_limits"] = limits
 
-        device_name = flat.get("property.device_name")
-        if device_name:
-            flat["name"] = device_name
-
         return flat
 
     async def async_get_status(self, device_id: str) -> str:

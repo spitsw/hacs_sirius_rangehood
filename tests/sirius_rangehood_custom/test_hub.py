@@ -41,8 +41,8 @@ class TestFlattenDevice:
         assert "_limits" in flat
         assert flat["_limits"]["device.fanSpeed"] == {"min": 0.0, "max": 4.0}
 
-    def test_flatten_uses_device_name_property(self) -> None:
-        """Should use property.device_name as display name if present."""
+    def test_flatten_name_from_description(self) -> None:
+        """Should derive the name from `description`, ignoring property.device_name."""
         raw = {
             "id": 2,
             "uid": "uid-2",
@@ -54,7 +54,7 @@ class TestFlattenDevice:
         }
         hub = SiriusHub.__new__(SiriusHub)
         flat = hub._flatten_device(raw)
-        assert flat["name"] == "Kitchen Rangehood"
+        assert flat["name"] == "Fallback Name"
 
     def test_flatten_no_properties(self) -> None:
         """Should handle devices with no properties or capabilities."""
