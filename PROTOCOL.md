@@ -209,11 +209,10 @@ endpoint and is never connected to the client directly; it reports its
 state to the Sirius cloud, and the cloud publishes it to the per-device
 topics below.
 
-Connections use TLS (MQTTS) with certificate verification — the
-certificate chain and hostname are validated, but **expired certificates
-are accepted** (the production server has a valid certificate that has
-passed its expiry date). The same account email and password are used for
-MQTT authentication.
+Connections use TLS (MQTTS), but **server certificate verification is
+disabled**: the production broker's certificate has passed its expiry date,
+so the client connects with `CERT_NONE` and no hostname check (see ADR-1).
+The same account email and password are used for MQTT authentication.
 
 ### Topic Structure
 

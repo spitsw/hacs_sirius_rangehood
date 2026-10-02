@@ -93,7 +93,6 @@ async def async_setup_entry(
         password,
         _on_mqtt_status,
         connection_callback=_on_mqtt_connection,
-        insecure_tls=insecure_tls,
     )
     mqtt_connected = await mqtt.async_start()
     coordinator.set_mqtt_connected(mqtt_connected)

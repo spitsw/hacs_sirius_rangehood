@@ -28,22 +28,20 @@ class SiriusMQTT:
     _DEFAULT_PORT = 8884
     _KEEPALIVE = 60
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
         mqtts_endpoint: str,
         username: str,
         password: str,
         status_callback: StatusCallback | None = None,
-        connection_callback: ConnectionCallback | None = None,
         *,
-        insecure_tls: bool = False,
+        connection_callback: ConnectionCallback | None = None,
     ) -> None:
         """Parse the broker endpoint and store connection details."""
         self._username = username
         self._password = password
         self._status_callback = status_callback
         self._connection_callback = connection_callback
-        self._insecure_tls = insecure_tls
         self._client: mqtt.Client | None = None
         self._subscribed_devices: set[str] = set()
 
@@ -138,7 +136,9 @@ class SiriusMQTT:
         self._client.reconnect_delay_set(min_delay=1, max_delay=120)
 
         try:
-            # Build TLS context and connect: all blocking I/O, run in executor
+            # The Sirius broker's certificate has expired, so server
+            # verification is disabled unconditionally (see ADR-1). The
+            # `insecure_tls` config option only governs the HTTPS REST session.
             def _connect() -> None:
                 ctx = ssl.create_default_context()
                 ctx.check_hostname = False
@@ -146,12 +146,7 @@ class SiriusMQTT:
                 self._client.tls_set_context(ctx)
                 self._client.connect(self._host, self._port, keepalive=self._KEEPALIVE)
 
-            _LOGGER.debug(
-                "Connecting to MQTT broker %s:%d (insecure=%s)...",
-                self._host,
-                self._port,
-                self._insecure_tls,
-            )
+            _LOGGER.debug("Connecting to MQTT broker %s:%d...", self._host, self._port)
             await asyncio.get_running_loop().run_in_executor(None, _connect)
             self._client.loop_start()
             # Synchronous connect() already handled CONNACK, so _on_connect won't
