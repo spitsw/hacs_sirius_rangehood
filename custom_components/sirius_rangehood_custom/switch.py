@@ -49,6 +49,8 @@ async def async_setup_entry(
 class SiriusRangehoodPowerSwitch(SiriusEntity, SwitchEntity):
     """Global power on/off for a Sirius device."""
 
+    _attr_translation_key = "power"
+
     def __init__(
         self,
         coordinator: DataUpdateCoordinator,
@@ -61,7 +63,6 @@ class SiriusRangehoodPowerSwitch(SiriusEntity, SwitchEntity):
         self._device_id = device_id
         self._entry_id = entry.entry_id
         self._attr_unique_id = f"{device_id}_power"
-        self._attr_name = "Global Power"
         self._attr_device_info = sirius_device_info(device_id, device)
 
     @property

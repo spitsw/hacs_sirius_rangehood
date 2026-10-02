@@ -79,7 +79,9 @@ If your credentials change or you need to update endpoints:
 | Entities don't update | Check HA logs for "MQTT" errors. Network or firewall may block port 8884 |
 | Re-auth prompt | Token expired — re-enter your password when prompted |
 
-To enable more detailed logs:
+To enable more detailed logs, open **Settings → Devices & Services →
+Sirius Rangehood → Enable debug logging** (the integration declares a
+`loggers` entry, so no YAML is required). To do it in YAML instead:
 
 ```yaml
 logger:

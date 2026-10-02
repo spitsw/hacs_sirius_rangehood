@@ -41,6 +41,9 @@
       "bi_power": {
         "name": "Bi-Power"
       },
+      "power": {
+        "name": "Global Power"
+      },
       "timer_active": {
         "name": "Timer Active"
       }
