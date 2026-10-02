@@ -34,25 +34,6 @@ CAP_LIGHT_BRIGHTNESS = "device.lightBrightness"
 CAP_TIMER_MODIFIABLE = "device.timer.modifiable"
 CAP_LIGHT_COLOR_TEMP = "device.lightColorTemperature"
 
-# Live capability keys — these MUST NOT be overwritten by periodic API polls
-# (only MQTT should update these)
-LIVE_CAPABILITY_KEYS = frozenset(
-    {
-        CAP_POWER,
-        CAP_FAN_SPEED,
-        CAP_LIGHT_ONOFF,
-        CAP_TIMER_VALUE,
-        CAP_FILTER_WORN,
-        CAP_FILTER_VALUE,
-        CAP_TIMER_ACTIVE,
-        CAP_TIMER_ENABLE,
-        CAP_BI_POWER_ENABLED,
-        CAP_LIGHT_BRIGHTNESS,
-        CAP_TIMER_MODIFIABLE,
-        CAP_LIGHT_COLOR_TEMP,
-    }
-)
-
 # Fan speed: API uses 0-4 (off, low, med, high, boost)
 FAN_SPEED_OFF = 0
 FAN_SPEED_LOW = 1
@@ -88,6 +69,3 @@ DEFAULT_SIRIUS_MQTTS_ENDPOINT = "mqtts://sirius.iotpga.it:8884"
 
 # Heartbeat interval — sends getStatus to trigger MQTT refresh (seconds)
 GET_STATUS_INTERVAL = 300
-
-# How often to poll /devices/ for static property changes (seconds)
-DEVICES_POLL_INTERVAL = 3600

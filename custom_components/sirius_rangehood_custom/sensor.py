@@ -190,7 +190,7 @@ class SiriusRangehoodTimerOffTime(SiriusEntity, SensorEntity):
     """Turn-off time for the countdown timer (timestamp for live countdown)."""
 
     _attr_translation_key = "timer_off_time"
-    _attr_device_class = "timestamp"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
 
     def __init__(
         self,

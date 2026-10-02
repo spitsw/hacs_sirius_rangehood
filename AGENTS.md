@@ -100,9 +100,10 @@ load-bearing points:
 
 ### Platform entity map
 
-`async_setup_entry` in `__init__.py` forwards to `PLATFORMS`. Each platform
-file follows the same shape: an `async_setup_entry` that loops
-`data["devices"]` and constructs entities from `(coordinator, did, device, entry)`.
+`async_setup_entry` in `__init__.py` forwards to `PLATFORMS` and stores a
+`SiriusRangehoodData` dataclass on `entry.runtime_data`. Each platform file
+follows the same shape: an `async_setup_entry` that reads `entry.runtime_data`
+and constructs entities from `(coordinator, did, device, entry)`.
 
 | File | Entities |
 |------|----------|
@@ -145,13 +146,6 @@ file follows the same shape: an `async_setup_entry` that loops
   `capabilities[].value` fields are placeholder/default values, not live state,
   so only `_limits` (min/max) is kept. Live values arrive via MQTT. A test
   enforces this — do not "restore" capability values into the flat dict.
-- **`fan.py` overrides `_async_send_command` with a different signature**
-  (`(capability_id, value)`) than `SiriusEntity._async_send_command`
-  (`(params: list)`). Other platforms use the base list form. Watch which
-  `self._async_send_command` you are calling inside fan code.
-- Dead/unused code you may notice: `LIVE_CAPABILITY_KEYS` and
-  `DEVICES_POLL_INTERVAL` in `api/const.py` are defined but never used, and
-  `hub._flatten_device` has an unreachable duplicate `return flat`.
 - TLS verification is intentionally disabled (`CERT_NONE`, hostname check off)
   for the Sirius broker because its certificate is expired (ADR-1). `insecure_tls`
   from the config flow controls the equivalent for the HTTP client.

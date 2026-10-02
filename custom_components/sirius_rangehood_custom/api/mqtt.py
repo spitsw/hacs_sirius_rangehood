@@ -143,7 +143,7 @@ class SiriusMQTT:
                 self._port,
                 self._insecure_tls,
             )
-            await asyncio.get_event_loop().run_in_executor(None, _connect)
+            await asyncio.get_running_loop().run_in_executor(None, _connect)
             self._client.loop_start()
             # Synchronous connect() already handled CONNACK, so _on_connect won't
             # fire again. Subscribe upfront.
