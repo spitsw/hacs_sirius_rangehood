@@ -1,6 +1,6 @@
 [project]
 name = "sirius-rangehood"
-version = "1.1.0"
+version = "1.1.1"
 description = "Home Assistant integration for WiFi-enabled Sirius rangehoods"
 requires-python = ">=3.14"
 

@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.1.1 (2026-10-03)
+
+### Bug Fixes
+
+- Keep api VERSION in sync with the released version
+  ([`32b0b4b`](https://github.com/spitsw/hacs_sirius_rangehood/commit/32b0b4b39e5b2c14bb3daffbd06e8cb083d096e3))
+
+
 ## v1.1.0 (2026-10-03)
 
 ### Continuous Integration

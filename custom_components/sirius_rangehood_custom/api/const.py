@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Warren Spits
 """Constants for the Sirius Rangehood API layer."""
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 
 # API endpoints
 API_LOGIN = "/users/login"
