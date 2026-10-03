@@ -27,12 +27,19 @@ jobs:
           python-version: "3.14"
 
       - name: Install python-semantic-release
-        run: python3 -m pip install python-semantic-release
+        run: python3 -m pip install python-semantic-release==10.7.0
 
       - name: Create the release
-        # python-semantic-release derives the next SemVer from Conventional
-        # Commit messages, bumps the version in pyproject.toml and
-        # manifest.json, commits, tags vX.Y.Z, and creates the GitHub Release.
+        # Derives the next SemVer from Conventional Commit messages, bumps the
+        # version in pyproject.toml and manifest.json, commits, tags vX.Y.Z and
+        # creates the GitHub Release.
+        #
+        # `main` is protected (changes go through a PR), so
+        # python-semantic-release cannot push its version-bump commit with the
+        # default GITHUB_TOKEN. Supply a PAT or GitHub App token as the
+        # RELEASE_TOKEN secret and add it as a branch-protection bypass actor.
+        # (Alternatively keep ${{ secrets.GITHUB_TOKEN }} and add the Actions
+        # bot to the bypass list.)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: semantic-release -v version

@@ -53,6 +53,13 @@ the git tag, and the manifest version always matches it** — write Conventional
 Commit messages (`feat:`, `fix:`, `chore:` …) rather than hand-editing versions
 or tagging manually.
 
+**`main` is protected — push changes via a PR, not directly.** jj supports this:
+create a bookmark, push it, open a PR (`jj bookmark create <name> -r @` then
+`jj git push --bookmark <name> --remote github`). Because PSR pushes its
+version-bump commit *to* `main`, the release workflow needs `RELEASE_TOKEN` (a
+PAT/GitHub App token that is a branch-protection bypass actor) instead of the
+default `GITHUB_TOKEN`.
+
 ## Version control (Jujutsu)
 
 This repo is a **colocated jj + Git** repo (`.jj/` beside `.git/`). Git stays the
