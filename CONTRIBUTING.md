@@ -15,7 +15,7 @@ Pull requests are the best way to propose changes to the codebase.
 
 1. Fork the repo and create your branch from `main`.
 2. If you've changed something, update the documentation.
-3. Make sure your code lints (using `scripts/lint`).
+3. Keep it lint-clean and formatted (`ruff check .` and `ruff format . --check`).
 4. Test you contribution.
 5. Issue that pull request!
 
@@ -44,17 +44,15 @@ People *love* thorough bug reports. I'm not even kidding.
 
 ## Use a Consistent Coding Style
 
-Use [black](https://github.com/ambv/black) to make sure the code follows the style.
+Run [`ruff`](https://github.com/astral-sh/ruff) for linting and formatting
+(`ruff check .` and `ruff format . --check`) — this is what CI enforces.
 
 ## Test your code modification
 
-This custom component is based on [integration_blueprint template](https://github.com/ludeeus/integration_blueprint).
-
-It comes with development environment in a container, easy to launch
-if you use Visual Studio Code. With this container you will have a stand alone
-Home Assistant instance running and already configured with the included
-[`configuration.yaml`](./config/configuration.yaml)
-file.
+- Run the test suite with `pytest tests/` (see `requirements_dev.txt`; needs a
+  Python with build headers, e.g. a uv-managed 3.14).
+- For a local Home Assistant instance, run `docker compose up` and open
+  <http://localhost:8124>; it mounts `config/` and `custom_components/`.
 
 ## License
 
