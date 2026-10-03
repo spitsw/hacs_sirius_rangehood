@@ -20,6 +20,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          # Don't bake GITHUB_TOKEN into the origin URL: PSR must push with
+          # RELEASE_TOKEN so the branch-protection bypass applies.
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -29,17 +32,24 @@ jobs:
       - name: Install python-semantic-release
         run: python3 -m pip install python-semantic-release==10.7.0
 
+      - name: Verify RELEASE_TOKEN
+        # `main` requires a PR, so PSR must push with a token that is a ruleset
+        # bypass actor. If RELEASE_TOKEN is unset, GH_TOKEN becomes empty and
+        # PSR silently falls back to the default GITHUB_TOKEN (the Actions bot),
+        # whose push is rejected. Fail fast and show the token's identity.
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::error::RELEASE_TOKEN is not set; the Actions GITHUB_TOKEN cannot push to protected main"
+            exit 1
+          fi
+          echo "RELEASE_TOKEN authenticates as: $(gh api user --jq .login)"
+
       - name: Create the release
         # Derives the next SemVer from Conventional Commit messages, bumps the
         # version in pyproject.toml and manifest.json, commits, tags vX.Y.Z and
         # creates the GitHub Release.
-        #
-        # `main` is protected (changes go through a PR), so
-        # python-semantic-release cannot push its version-bump commit with the
-        # default GITHUB_TOKEN. Supply a PAT or GitHub App token as the
-        # RELEASE_TOKEN secret and add it as a branch-protection bypass actor.
-        # (Alternatively keep ${{ secrets.GITHUB_TOKEN }} and add the Actions
-        # bot to the bypass list.)
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: semantic-release -v version
